@@ -29,5 +29,7 @@ public class TrainLibClient implements ClientModInitializer {
             MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(state, matrices, vertexConsumers, light, OverlayTexture.DEFAULT_UV);
             matrices.pop();
         });
+        CargoRenderingRegistry.getInstance().register(CargoType.ENTITY_CARGO_TYPE, (cargo, view, tickDelta, matrices, vertexConsumers, light) -> {
+        });
     }
 }

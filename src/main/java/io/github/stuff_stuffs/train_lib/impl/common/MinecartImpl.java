@@ -7,6 +7,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
+import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -25,7 +26,6 @@ import java.util.Optional;
 public class MinecartImpl implements Minecart {
     private static final double OPTIMAL_DISTANCE = 1.25;
     private static final double CART_MASS = 1;
-    private static final int MAX_RECURSION = 8;
     private final World world;
     private double speed = 0;
     private double progress = 0;
@@ -121,7 +121,7 @@ public class MinecartImpl implements Minecart {
         }
         tracker.reset();
         double time = 1.0;
-        while (time > 0 && count < MAX_RECURSION) {
+        while (time > 0 && count < TrainLib.MAX_RECURSION) {
             if (attached != null) {
                 final Optional<MinecartPathfinder.Result> optimalSpeed = attached.tryFollow(this);
                 if (optimalSpeed.isEmpty()) {
@@ -427,7 +427,7 @@ public class MinecartImpl implements Minecart {
     @Override
     public void speed(final double speed) {
         if (attached() == null) {
-            final double capped = Math.min(Math.abs(speed), 4) * Math.signum(speed);
+            final double capped = Math.min(Math.abs(speed), TrainLib.MAX_SPEED) * Math.signum(speed);
             forwards = capped >= 0;
             this.speed = capped;
         }

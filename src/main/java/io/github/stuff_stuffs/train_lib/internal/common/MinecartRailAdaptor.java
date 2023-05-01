@@ -1,9 +1,6 @@
 package io.github.stuff_stuffs.train_lib.internal.common;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartDataView;
-import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRail;
-import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRailProvider;
-import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartView;
+import io.github.stuff_stuffs.train_lib.api.common.cart.*;
 import io.github.stuff_stuffs.train_lib.api.common.cart.basic.PoweredMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.basic.SimpleMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
@@ -15,6 +12,20 @@ import org.jetbrains.annotations.Nullable;
 
 public final class MinecartRailAdaptor {
     private MinecartRailAdaptor() {
+    }
+
+    public static MinecartRailProvider unpoweredShapeBased(RailShape shape, BlockPos pos) {
+        return new DelegatingMinecartRailProvider(shapeBased(shape, pos)) {
+            @Override
+            protected MinecartRail wrap(MinecartRail rail) {
+                return new DelegatingMinecartRail(rail) {
+                    @Override
+                    public double friction(MinecartView minecart, double progress) {
+                        return super.friction(minecart, progress) * 10;
+                    }
+                };
+            }
+        };
     }
 
     public static MinecartRailProvider poweredShapeBased(final RailShape shape, final BlockPos pos) {

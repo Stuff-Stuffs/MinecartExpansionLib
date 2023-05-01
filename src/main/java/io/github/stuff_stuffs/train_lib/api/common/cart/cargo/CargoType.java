@@ -9,6 +9,7 @@ import net.minecraft.registry.RegistryKey;
 public final class CargoType<T extends Cargo> {
     public static final Registry<CargoType<?>> REGISTRY = FabricRegistryBuilder.createSimple(RegistryKey.<CargoType<?>>ofRegistry(TrainLib.id("cargo_types"))).buildAndRegister();
     public static final CargoType<BlockCargo> BLOCK_CARGO_TYPE = new CargoType<>(BlockCargo.CODEC);
+    public static final CargoType<EntityCargo> ENTITY_CARGO_TYPE = new CargoType<>(EntityCargo.CODEC);
     private final Codec<T> codec;
 
     public CargoType(final Codec<T> codec) {
@@ -21,5 +22,6 @@ public final class CargoType<T extends Cargo> {
 
     public static void init() {
         Registry.register(REGISTRY, TrainLib.id("block"), BLOCK_CARGO_TYPE);
+        Registry.register(REGISTRY, TrainLib.id("entity"), ENTITY_CARGO_TYPE);
     }
 }
