@@ -12,6 +12,7 @@ import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.model.EntityModel;
@@ -29,12 +30,14 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
     private static final Identifier WHEEL_TEXTURE = TrainLib.id("textures/entity/minecart_wheel.png");
     protected final EntityModel<T> model;
     protected final ModelPart wheelPart;
+    protected final BlockRenderManager blockRenderManager;
 
 
     public FastMinecartEntityRenderer(final EntityRendererFactory.Context ctx) {
         super(ctx);
         model = new MinecartEntityModel<>(ctx.getPart(EntityModelLayers.MINECART));
         wheelPart = ctx.getPart(WHEEL_LAYER);
+        blockRenderManager = ctx.getBlockRenderManager();
     }
 
     @Override
@@ -45,19 +48,19 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
         final MinecartMovementTracker.Entry entry = tracker.at(tickDelta);
         final MinecartMovementTracker.Entry next = tracker.next(tickDelta);
         final Quaternionf quat;
+        final Vec3d forward = entry.forward();
         if (entry.equals(next)) {
-            final float y = (float) -(Math.atan2(entry.forward().z, entry.forward().x) + Math.PI);
-            final float p = (float) -Math.asin(entry.forward().y);
+            final float y = (float) -(Math.atan2(forward.z, forward.x) + Math.PI);
+            final float p = (float) -Math.asin(forward.y);
             quat = new Quaternionf().rotationYXZ(y, 0, p);
         } else {
-            final float y0 = (float) -(Math.atan2(entry.forward().z, entry.forward().x) + Math.PI);
-            final float p0 = (float) -Math.asin(entry.forward().y);
+            final float y0 = (float) -(Math.atan2(forward.z, forward.x) + Math.PI);
+            final float p0 = (float) -Math.asin(forward.y);
             final float y1 = (float) -(Math.atan2(next.forward().z, next.forward().x) + Math.PI);
             final float p1 = (float) -Math.asin(next.forward().y);
             final float weight = (tickDelta - entry.time()) / (next.time() - entry.time());
             quat = new Quaternionf().rotationYXZ(y0, 0, p0).slerp(new Quaternionf().rotationYXZ(y1, 0, p1), weight);
         }
-
         matrices.push();
         final Vec3d position = entity.fastPosition(tickDelta);
         matrices.translate(position.x - entity.lastRenderX, position.y - entity.lastRenderY, position.z - entity.lastRenderZ);

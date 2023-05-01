@@ -256,7 +256,7 @@ public class MinecartImpl implements Minecart {
             if (attached != null) {
                 applyVelocityModifierTrain(rail, Math.max(overflow, MathUtil.EPS));
             }
-            tracker.onMove(position(), tangent, MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
+            tracker.onMove(position(), tangent.multiply(forwards?1:-1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
             return new MoveInfo(Math.max(overflow, MathUtil.EPS), nextPos);
         }
         progress = progress + maxMove;
@@ -267,7 +267,7 @@ public class MinecartImpl implements Minecart {
         final Vec3d tangent = rail.tangent(progress);
         velocity = tangent.multiply(this.speed);
         position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
-        tracker.onMove(position(), tangent, MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
+        tracker.onMove(position(), tangent.multiply(forwards?1:-1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
         if (attached != null) {
             applyVelocityModifierTrain(rail, Math.max(m, MathUtil.EPS));
         }
