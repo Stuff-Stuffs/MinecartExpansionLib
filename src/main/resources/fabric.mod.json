@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "train_lib",
+  "version": "${version}",
+  "name": "Train Lib",
+  "description": "A minecart expansion library!",
+  "authors": [
+    "Stuff-Stuffs"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/FabricMC/fabric-example-mod"
+  },
+  "license": "LGPL-3.0-or-later",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "io.github.stuff_stuffs.train_lib.internal.common.TrainLib"
+    ],
+    "client": [
+      "io.github.stuff_stuffs.train_lib.internal.client.TrainLibClient"
+    ]
+  },
+  "mixins": [
+    "train_lib.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.11",
+    "fabric-api": "*",
+    "minecraft": "~1.19.4",
+    "java": ">=17"
+  }
+}
