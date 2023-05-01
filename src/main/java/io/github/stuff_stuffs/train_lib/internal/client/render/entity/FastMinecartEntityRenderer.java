@@ -20,6 +20,7 @@ import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.MinecartEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 
 public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends EntityRenderer<T> {
@@ -56,7 +57,10 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
             final float weight = (tickDelta - entry.time()) / (next.time() - entry.time());
             quat = new Quaternionf().rotationYXZ(y0, 0, p0).slerp(new Quaternionf().rotationYXZ(y1, 0, p1), weight);
         }
+
         matrices.push();
+        final Vec3d position = entity.fastPosition(tickDelta);
+        matrices.translate(position.x - entity.lastRenderX, position.y - entity.lastRenderY, position.z - entity.lastRenderZ);
         matrices.multiply(quat);
         matrices.translate(0, heightOffset, 0);
         matrices.push();

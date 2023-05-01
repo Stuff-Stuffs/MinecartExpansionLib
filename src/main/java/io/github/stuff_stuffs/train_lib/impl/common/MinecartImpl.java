@@ -89,7 +89,9 @@ public class MinecartImpl implements Minecart {
         tryMoveOnRail(pos);
         minecart = this;
         while (minecart != null) {
-            minecart.holder().setPosition(minecart.position());
+            final Vec3d position = minecart.position();
+            minecart.holder().resetPosition();
+            minecart.holder().setPosition(position);
             if (((MinecartImpl) minecart).onRail) {
                 minecart.holder().setVelocity(minecart.velocity());
             }
@@ -471,7 +473,7 @@ public class MinecartImpl implements Minecart {
     @Override
     public void addSpeed(final double speed) {
         if (attached != null) {
-            addSpeedTrain(speed * (forwards ? 1 : -1));
+            addSpeedTrain(-speed);
         } else {
             addSpeed0(speed);
         }

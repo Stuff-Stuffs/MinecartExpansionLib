@@ -29,6 +29,7 @@ public class FastMinecartItem extends Item {
             final ItemStack itemStack = context.getStack();
             if (!world.isClient) {
                 final FastMinecartEntity entity = new FastMinecartEntity(ModEntities.TEST_MINECART_ENTITY_TYPE, world);
+                entity.setPosition(context.getHitPos().add(0, 0.4, 0));
                 if (itemStack.hasCustomName()) {
                     entity.setCustomName(itemStack.getName());
                 }
