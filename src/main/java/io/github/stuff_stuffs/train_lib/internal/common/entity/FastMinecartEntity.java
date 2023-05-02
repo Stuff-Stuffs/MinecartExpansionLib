@@ -251,7 +251,7 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
                 }
             }
         }
-        if (age % 16 == 0 && !world.isClient) {
+        if ((age + getId()) % 32 == 0 && !world.isClient) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 SPEED_POS_UPDATE.send(connection, this);
@@ -359,11 +359,8 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
 
     @Override
     public void updateFastPassengerPosition(final Entity entity, final float tickDelta) {
-        final Vec3d position = fastPosition(tickDelta).add(0, 1, 0);
+        final Vec3d position = fastPosition(tickDelta).add(0, -0.5, 0);
         entity.setPosition(position);
-        entity.lastRenderX = position.x;
-        entity.lastRenderY = position.y;
-        entity.lastRenderZ = position.z;
     }
 
     @Override
@@ -490,5 +487,11 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     @Override
     protected boolean canAddPassenger(final Entity passenger) {
         return super.canAddPassenger(passenger) && minecart.cargo() == null;
+    }
+
+    @Nullable
+    @Override
+    public ItemStack getPickBlockStack() {
+        return new ItemStack(TrainLibItems.FAST_MINECART_ITEM);
     }
 }

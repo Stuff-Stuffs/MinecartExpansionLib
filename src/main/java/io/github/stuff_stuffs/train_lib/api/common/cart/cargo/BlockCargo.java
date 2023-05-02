@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 
@@ -28,6 +29,8 @@ public record BlockCargo(BlockState blockState, Optional<NbtCompound> nbt) imple
 
     @Override
     public List<ItemStack> drops(DamageSource source) {
-        return List.of(new ItemStack(blockState.getBlock()));
+        final ItemStack itemStack = new ItemStack(blockState.getBlock());
+        nbt.ifPresent(nbt -> itemStack.getOrCreateNbt().put(BlockItem.BLOCK_ENTITY_TAG_KEY, nbt));
+        return List.of(itemStack);
     }
 }
