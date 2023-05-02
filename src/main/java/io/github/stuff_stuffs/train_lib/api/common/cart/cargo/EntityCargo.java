@@ -2,8 +2,11 @@ package io.github.stuff_stuffs.train_lib.api.common.cart.cargo;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Uuids;
 
+import java.util.List;
 import java.util.UUID;
 
 public record EntityCargo(UUID id) implements Cargo {
@@ -17,5 +20,10 @@ public record EntityCargo(UUID id) implements Cargo {
     @Override
     public double mass() {
         return 1;
+    }
+
+    @Override
+    public List<ItemStack> drops(DamageSource source) {
+        return List.of();
     }
 }

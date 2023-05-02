@@ -21,6 +21,8 @@ import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.MinecartEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 
@@ -65,6 +67,7 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
         final Vec3d position = entity.fastPosition(tickDelta);
         matrices.translate(position.x - entity.lastRenderX, position.y - entity.lastRenderY, position.z - entity.lastRenderZ);
         matrices.multiply(quat);
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age) * entity.getDataTracker().get(FastMinecartEntity.DAMAGE_WOBBLE_STRENGTH) / 10.0F));
         matrices.translate(0, heightOffset, 0);
         matrices.push();
         matrices.scale(-1, -1, 1);

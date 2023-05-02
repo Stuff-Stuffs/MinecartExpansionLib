@@ -3,7 +3,7 @@ package io.github.stuff_stuffs.train_lib.internal.common;
 import io.github.stuff_stuffs.train_lib.api.common.cart.*;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
-import io.github.stuff_stuffs.train_lib.internal.common.entity.ModEntities;
+import io.github.stuff_stuffs.train_lib.internal.common.entity.TrainLibEntities;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.block.AbstractRailBlock;
@@ -23,7 +23,7 @@ public class TrainLib implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        ModEntities.init();
+        TrainLibEntities.init();
         CargoType.init();
         TrainLibItems.init();
         MinecartAPI.MINECART_RAIL_BLOCK_API.registerFallback((world, pos, state, blockEntity, context) -> {

@@ -17,10 +17,16 @@ import io.github.stuff_stuffs.train_lib.internal.client.TrainLibClient;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
+import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.*;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -33,7 +39,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
+import net.minecraft.world.event.GameEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -108,6 +116,7 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
             ((MinecartImpl) holder.minecart()).setAttached(obj.minecart);
         }
     }).withTinySize().toServerOnly();
+    public static final TrackedData<Float> DAMAGE_WOBBLE_STRENGTH = DataTracker.registerData(FastMinecartEntity.class, TrackedDataHandlerRegistry.FLOAT);
     private final MinecartMovementTracker movementTracker;
     private final MinecartImpl minecart;
     public float wheelAngle;
@@ -194,6 +203,10 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     @Override
     public void tick() {
         super.tick();
+        final float damageWobble = dataTracker.get(DAMAGE_WOBBLE_STRENGTH);
+        if (damageWobble > 0.0F) {
+            dataTracker.set(DAMAGE_WOBBLE_STRENGTH, Math.max(damageWobble - 1, 0));
+        }
         wheelAngle = wheelAngle + (float) (minecart.speed() * 9 / Math.PI);
         minecart.tick(centeredBlockPos());
         if (minecart.cargo() instanceof EntityCargo entityCargo && world instanceof ServerWorld serverWorld) {
@@ -247,6 +260,47 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     }
 
     @Override
+    public boolean damage(final DamageSource source, final float amount) {
+        if (world.isClient || isRemoved()) {
+            return true;
+        } else if (isInvulnerableTo(source)) {
+            return false;
+        } else {
+            final float damageWobble = dataTracker.get(DAMAGE_WOBBLE_STRENGTH);
+            emitGameEvent(GameEvent.ENTITY_DAMAGE, source.getAttacker());
+            final boolean creative = source.getAttacker() instanceof PlayerEntity && ((PlayerEntity) source.getAttacker()).getAbilities().creativeMode;
+            if (creative || amount + damageWobble > 4.0F) {
+                removeAllPassengers();
+                if (creative && !hasCustomName()) {
+                    discard();
+                } else {
+                    dropItems(source);
+                }
+            } else {
+                dataTracker.set(DAMAGE_WOBBLE_STRENGTH, damageWobble + amount);
+            }
+            return true;
+        }
+    }
+
+    public void dropItems(final DamageSource damageSource) {
+        kill();
+        if (world.getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
+            final ItemStack itemStack = new ItemStack(TrainLibItems.FAST_MINECART_ITEM);
+            if (hasCustomName()) {
+                itemStack.setCustomName(getCustomName());
+            }
+            final Cargo cargo = minecart.cargo();
+            if (cargo != null) {
+                for (final ItemStack drop : cargo.drops(damageSource)) {
+                    dropStack(drop);
+                }
+            }
+            dropStack(itemStack);
+        }
+    }
+
+    @Override
     public boolean canHit() {
         return true;
     }
@@ -265,7 +319,7 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
 
     @Override
     protected void initDataTracker() {
-
+        dataTracker.startTracking(DAMAGE_WOBBLE_STRENGTH, 0.0F);
     }
 
     @Override
@@ -350,6 +404,16 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
                     minecart.addSpeed(minecart.speed() >= 0 ? -0.05 : 0.05);
                 }
             }
+        }
+    }
+
+    @Override
+    public void remove(final RemovalReason reason) {
+        super.remove(reason);
+        minecart.setAttached(null);
+        final MinecartImpl attachment = minecart.attachment();
+        if (attachment != null) {
+            attachment.setAttached(null);
         }
     }
 

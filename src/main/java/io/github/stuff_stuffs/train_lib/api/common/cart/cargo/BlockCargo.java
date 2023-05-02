@@ -3,8 +3,11 @@ package io.github.stuff_stuffs.train_lib.api.common.cart.cargo;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 
+import java.util.List;
 import java.util.Optional;
 
 public record BlockCargo(BlockState blockState, Optional<NbtCompound> nbt) implements Cargo {
@@ -21,5 +24,10 @@ public record BlockCargo(BlockState blockState, Optional<NbtCompound> nbt) imple
     @Override
     public double mass() {
         return 1.0;
+    }
+
+    @Override
+    public List<ItemStack> drops(DamageSource source) {
+        return List.of(new ItemStack(blockState.getBlock()));
     }
 }

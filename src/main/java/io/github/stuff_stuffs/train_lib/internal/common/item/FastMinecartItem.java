@@ -1,7 +1,7 @@
 package io.github.stuff_stuffs.train_lib.internal.common.item;
 
 import io.github.stuff_stuffs.train_lib.internal.common.entity.FastMinecartEntity;
-import io.github.stuff_stuffs.train_lib.internal.common.entity.ModEntities;
+import io.github.stuff_stuffs.train_lib.internal.common.entity.TrainLibEntities;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.Item;
@@ -28,7 +28,7 @@ public class FastMinecartItem extends Item {
         } else {
             final ItemStack itemStack = context.getStack();
             if (!world.isClient) {
-                final FastMinecartEntity entity = new FastMinecartEntity(ModEntities.TEST_MINECART_ENTITY_TYPE, world);
+                final FastMinecartEntity entity = new FastMinecartEntity(TrainLibEntities.FAST_MINECART_ENTITY_TYPE, world);
                 entity.setPosition(context.getHitPos().add(0, 0.4, 0));
                 if (itemStack.hasCustomName()) {
                     entity.setCustomName(itemStack.getName());
