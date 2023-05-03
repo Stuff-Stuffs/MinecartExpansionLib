@@ -32,7 +32,8 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
@@ -47,7 +48,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Function;
 
 public class FastMinecartEntity extends Entity implements MinecartHolder, FastMountEntity, PreviousInteractionAwareEntity {
@@ -116,8 +116,11 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
         if (actor instanceof ServerPlayerEntity player) {
             if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
                 if (other instanceof MinecartHolder holder) {
-                    if (tryLink(obj.minecart, (MinecartImpl) holder.minecart(), true) && player.interactionManager.getGameMode().isSurvivalLike()) {
-                        player.getStackInHand(Hand.MAIN_HAND).decrement(1);
+                    if (tryLink(obj.minecart, (MinecartImpl) holder.minecart(), true)) {
+                        if (player.interactionManager.getGameMode().isSurvivalLike()) {
+                            player.getStackInHand(Hand.MAIN_HAND).decrement(1);
+                        }
+                        obj.world.playSoundFromEntity(null, obj, SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.PLAYERS, 1.0F, 1.0F);
                     }
                 }
             }
@@ -131,7 +134,11 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     public FastMinecartEntity(final EntityType<?> type, final World world) {
         super(type, world);
         movementTracker = new MinecartMovementTracker(() -> new MinecartMovementTracker.Entry(1.0F, getPos(), Vec3d.fromPolar(0, 0), MinecartRail.DEFAULT_UP));
-        minecart = new MinecartImpl(world, new MinecartImpl.Tracker() {
+        minecart = new MinecartImpl(world, createTracker(), createHandler(), this);
+    }
+
+    protected Minecart.Tracker createTracker() {
+        return new MinecartImpl.Tracker() {
             @Override
             public void onMove(final Vec3d position, final Vec3d tangent, final Vec3d up, final double time) {
                 setPosition(position);
@@ -160,7 +167,7 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
                     }
                 }
             }
-        }, createHandler(), this);
+        };
     }
 
     protected Minecart.OffRailHandler createHandler() {

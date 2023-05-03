@@ -8,10 +8,13 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.util.ItemScatterer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
@@ -22,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 public class MinecartImpl implements Minecart {
     private static final double OPTIMAL_DISTANCE = 1.25;
@@ -398,7 +402,11 @@ public class MinecartImpl implements Minecart {
         }
     }
 
-    public boolean setAttached(final @Nullable MinecartImpl attached) {
+    public boolean setAttached(@Nullable final MinecartImpl attached) {
+        return setAttached(attached, (stack, minecart) -> ItemScatterer.spawn(world, minecart.position().x, minecart.position().y, minecart.position().z, stack));
+    }
+
+    public boolean setAttached(final @Nullable MinecartImpl attached, final BiConsumer<ItemStack, Minecart> dropper) {
         if (attached != null) {
             if (cars().contains(attached)) {
                 return false;
@@ -408,11 +416,12 @@ public class MinecartImpl implements Minecart {
             if (this.attached.attachment == this) {
                 this.attached.attachment = null;
                 this.attached.updateBehindMass(0);
+                dropper.accept(new ItemStack(Blocks.CHAIN), this);
             }
         }
         this.attached = attached;
         if (this.attached != null && this.attached.attachment != null) {
-            if (!this.attached.attachment.setAttached(null)) {
+            if (!this.attached.attachment.setAttached(null, dropper)) {
                 throw new RuntimeException();
             }
         }

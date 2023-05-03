@@ -28,11 +28,11 @@ public final class MinecartMovementTracker {
     }
 
     public List<Vec3d> positions() {
-        final List<Vec3d> vectors = new ArrayList<>(entries.size());
+        final List<Vec3d> positions = new ArrayList<>(entries.size());
         for (final Entry entry : entries) {
-            vectors.add(entry.position);
+            positions.add(entry.position);
         }
-        return vectors;
+        return positions;
     }
 
     public Entry at(final float time) {
