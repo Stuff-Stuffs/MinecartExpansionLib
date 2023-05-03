@@ -32,12 +32,18 @@ public interface MinecartRail {
         //default minecart slowdown
         final double g = 0.0078125;
         final double abs = Math.abs(g / minecart.speed());
-        if(abs > 1) {
+        if (abs > 1) {
             return 1;
         }
         return abs;
     }
 
     default void onRail(final Minecart minecart, final double startProgress, final double endProgress, final double time) {
+    }
+
+    default void onEnter(final Minecart minecart) {
+    }
+
+    default void onExit(final Minecart minecart) {
     }
 }

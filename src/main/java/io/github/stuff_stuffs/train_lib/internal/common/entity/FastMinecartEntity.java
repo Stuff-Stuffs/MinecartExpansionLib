@@ -93,21 +93,24 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
             buffer.writeInt(-1);
         }
     }).withTinySize().toClientOnly();
-    public static final NetIdDataK<FastMinecartEntity> SPEED_POS_UPDATE = NET_PARENT.idData("speed_pos", Float.BYTES * 3 + Float.BYTES + Float.BYTES).setReadWrite((obj, buffer, ctx) -> {
+    public static final NetIdDataK<FastMinecartEntity> SPEED_POS_UPDATE = NET_PARENT.idData("speed_pos", Float.BYTES * 3 + Float.BYTES + Float.BYTES + Integer.BYTES).setReadWrite((obj, buffer, ctx) -> {
         final double x = buffer.readFloat();
         final double y = buffer.readFloat();
         final double z = buffer.readFloat();
         final double progress = buffer.readFloat();
         final double speed = buffer.readFloat();
+        int flags = buffer.readInt();
         obj.minecart.position(new Vec3d(x, y, z));
         obj.minecart.progress(progress);
         obj.minecart.speed(speed);
+        applyFlags(flags, obj.minecart);
     }, (obj, buffer, ctx) -> {
         buffer.writeFloat((float) obj.minecart.position().getX());
         buffer.writeFloat((float) obj.minecart.position().getY());
         buffer.writeFloat((float) obj.minecart.position().getZ());
         buffer.writeFloat((float) obj.minecart.progress());
         buffer.writeFloat((float) obj.minecart.speed());
+        buffer.writeInt(writeFlags(obj.minecart));
     }).withTinySize().toClientOnly();
     public static final NetIdDataK<FastMinecartEntity> TRY_LINK = NET_PARENT.idData("try_link", Integer.BYTES * 2).setReceiver((obj, buffer, ctx) -> {
         final int otherId = buffer.readInt();
@@ -512,5 +515,17 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
 
         second.setAttached(first);
         return true;
+    }
+
+    protected static int writeFlags(final MinecartImpl minecart) {
+        int i = 0;
+        if (minecart.forwardsAligned()) {
+            i |= 1;
+        }
+        return i;
+    }
+
+    protected static void applyFlags(final int i, final MinecartImpl minecart) {
+        minecart.forwardsAligned((i & 1) == 1);
     }
 }
