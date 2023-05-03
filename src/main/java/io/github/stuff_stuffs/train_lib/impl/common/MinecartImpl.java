@@ -48,6 +48,7 @@ public class MinecartImpl implements Minecart {
     private double massAhead = 0;
     private double massBehind = 0;
     private boolean optimalDirection = false;
+    private boolean forwardsAligned = true;
 
     public MinecartImpl(final World world, final Tracker tracker, final OffRailHandler offRailHandler, final Entity holder) {
         this.world = world;
@@ -59,6 +60,7 @@ public class MinecartImpl implements Minecart {
     public void save(final NbtCompound nbt) {
         nbt.putDouble("speed", speed);
         nbt.putDouble("progress", progress);
+        nbt.putBoolean("forwardsAligned", forwardsAligned);
         if (cargo != null) {
             final DataResult<NbtElement> result = Cargo.CODEC.encodeStart(NbtOps.INSTANCE, cargo);
             if (result.result().isPresent()) {
@@ -79,6 +81,11 @@ public class MinecartImpl implements Minecart {
             }
         }
         forwards = speed >= 0;
+        forwardsAligned = nbt.getBoolean("forwardsAligned");
+    }
+
+    public void forwardsAligned(final boolean b) {
+        forwardsAligned = b;
     }
 
     public void tick(final BlockPos pos) {
@@ -194,6 +201,7 @@ public class MinecartImpl implements Minecart {
             lastRail = null;
             forwards = true;
             progress = 0;
+            forwardsAligned = true;
             return null;
         }
         if (lastRail == null) {
@@ -202,6 +210,7 @@ public class MinecartImpl implements Minecart {
                 lastRail = info.rail();
                 progress = info.progress();
                 forwards = info.forwards();
+                forwardsAligned = true;
             } else {
                 return null;
             }
@@ -210,6 +219,7 @@ public class MinecartImpl implements Minecart {
         if (rail == null) {
             lastRail = null;
             forwards = true;
+            forwardsAligned = true;
             return null;
         }
         currentRail = rail;
@@ -260,13 +270,18 @@ public class MinecartImpl implements Minecart {
             } else {
                 this.speed = -Math.abs(speed);
             }
+            currentRail.onExit(this);
             currentRail = railInfo.rail();
+            currentRail.onEnter(this);
             progress = railInfo.progress();
+            if (forwards ^ railInfo.forwards()) {
+                forwardsAligned = !forwardsAligned;
+            }
             forwards = railInfo.forwards();
             if (attached != null) {
                 applyVelocityModifierTrain(rail, Math.max(overflow, MathUtil.EPS));
             }
-            tracker.onMove(position(), tangent.multiply(forwards ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
+            tracker.onMove(position(), tangent.multiply(forwardsAligned ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
             return new MoveInfo(Math.max(overflow, MathUtil.EPS), nextPos);
         }
         progress = progress + maxMove;
@@ -280,7 +295,7 @@ public class MinecartImpl implements Minecart {
         final Vec3d tangent = rail.tangent(progress);
         velocity = tangent.multiply(this.speed);
         position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
-        tracker.onMove(position(), tangent.multiply(forwards ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
+        tracker.onMove(position(), tangent.multiply(forwardsAligned ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
         if (attached != null) {
             applyVelocityModifierTrain(rail, Math.max(m, MathUtil.EPS));
         }
@@ -375,6 +390,11 @@ public class MinecartImpl implements Minecart {
         return massAhead;
     }
 
+    @Override
+    public boolean forwardsAligned() {
+        return forwardsAligned;
+    }
+
     public List<MinecartImpl> cars() {
         if (attached != null) {
             return attached.cars();
@@ -448,8 +468,12 @@ public class MinecartImpl implements Minecart {
     public void speed(final double speed) {
         if (attached() == null) {
             final double capped = Math.min(Math.abs(speed), TrainLib.MAX_SPEED) * Math.signum(speed);
+            final boolean old = forwards;
             forwards = capped >= 0;
             this.speed = capped;
+            if (old ^ forwards) {
+                forwardsAligned = !forwardsAligned;
+            }
         }
     }
 
@@ -464,7 +488,11 @@ public class MinecartImpl implements Minecart {
             } else {
                 this.speed = Math.copySign(1.0, this.speed) * -Math.abs(speed);
             }
+            final boolean old = forwards;
             forwards = this.speed >= 0;
+            if (old ^ forwards) {
+                forwardsAligned = !forwardsAligned;
+            }
         }
         final MinecartImpl tmp = attached;
         attached = attachment;
@@ -542,6 +570,7 @@ public class MinecartImpl implements Minecart {
         currentRail = snap.rail();
         progress = snap.progress();
         onRail = true;
+        currentRail.onEnter(this);
     }
 
     @Override

@@ -22,4 +22,6 @@ public interface MinecartDataView {
     double massBehind();
 
     double massAhead();
+
+    boolean forwardsAligned();
 }
