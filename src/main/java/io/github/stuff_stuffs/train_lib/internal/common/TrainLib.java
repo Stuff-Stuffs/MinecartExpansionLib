@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 public class TrainLib implements ModInitializer {
     public static final String MOD_ID = "train_lib";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final double MAX_SPEED = 1;
+    public static final double MAX_SPEED = 4;
     public static final int MAX_RECURSION = 8;
 
     @Override

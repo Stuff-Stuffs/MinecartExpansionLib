@@ -109,11 +109,18 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
         buffer.writeFloat((float) obj.minecart.progress());
         buffer.writeFloat((float) obj.minecart.speed());
     }).withTinySize().toClientOnly();
-    public static final NetIdDataK<FastMinecartEntity> TRY_LINK = NET_PARENT.idData("try_link", Integer.BYTES).setReceiver((obj, buffer, ctx) -> {
+    public static final NetIdDataK<FastMinecartEntity> TRY_LINK = NET_PARENT.idData("try_link", Integer.BYTES * 2).setReceiver((obj, buffer, ctx) -> {
         final int otherId = buffer.readInt();
         final Entity other = obj.world.getEntityById(otherId);
-        if (other instanceof MinecartHolder holder) {
-            ((MinecartImpl) holder.minecart()).setAttached(obj.minecart);
+        Entity actor = obj.world.getEntityById(buffer.readInt());
+        if (actor instanceof ServerPlayerEntity player) {
+            if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
+                if (other instanceof MinecartHolder holder) {
+                    if (tryLink(obj.minecart, (MinecartImpl) holder.minecart(), true) && player.interactionManager.getGameMode().isSurvivalLike()) {
+                        player.getStackInHand(Hand.MAIN_HAND).decrement(1);
+                    }
+                }
+            }
         }
     }).withTinySize().toServerOnly();
     public static final TrackedData<Float> DAMAGE_WOBBLE_STRENGTH = DataTracker.registerData(FastMinecartEntity.class, TrackedDataHandlerRegistry.FLOAT);
@@ -188,7 +195,8 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
 
     @Override
     public void updatePassengerPosition(final Entity passenger) {
-        super.updatePassengerPosition(passenger);
+        final Vec3d position = fastPosition(1.0F).add(0, passenger.getHeightOffset(), 0);
+        passenger.setPosition(position);
     }
 
     public MinecartMovementTracker movementTracker() {
@@ -209,21 +217,6 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
         }
         wheelAngle = wheelAngle + (float) (minecart.speed() * 9 / Math.PI);
         minecart.tick(centeredBlockPos());
-        if (minecart.cargo() instanceof EntityCargo entityCargo && world instanceof ServerWorld serverWorld) {
-            final Entity entity = serverWorld.getEntity(entityCargo.id());
-            if (entity == null || entity.isRemoved() || !getPassengerList().contains(entity)) {
-                minecart.cargo(null);
-            }
-        }
-        if (!world.isClient) {
-            final List<Entity> passengerList = new ArrayList<>(getPassengerList());
-            final UUID id = minecart.cargo() instanceof EntityCargo entityCargo ? entityCargo.id() : null;
-            for (final Entity entity : passengerList) {
-                if (!entity.getUuid().equals(id)) {
-                    entity.stopRiding();
-                }
-            }
-        }
         if (minecart.onRail()) {
             if (!world.isClient) {
                 final List<Vec3d> positions = movementTracker.positions();
@@ -242,16 +235,17 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
                 }
                 final List<Entity> connected = minecart.cars().stream().map(MinecartImpl::holder).filter(Objects::nonNull).toList();
                 final double speed = Math.abs(minecart.speed()) + 0.9;
-                final float damage = (float) (speed * speed * ((minecart.mass() + minecart.massAhead() + minecart.massBehind()) / 10 + 0.9));
+                final double massContribution = minecart.mass() + minecart.massAhead() + minecart.massBehind();
+                final float damage = (float) (speed * speed * massContribution);
                 for (final Box box : boxes) {
-                    final List<Entity> entities = world.getOtherEntities(this, box, i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()));
+                    final List<Entity> entities = world.getOtherEntities(this, box, i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
                     for (final Entity entity : entities) {
                         entity.damage(TrainLibDamageSources.createTrain(this), damage);
                     }
                 }
             }
         }
-        if ((age + getId()) % 32 == 0 && !world.isClient) {
+        if (age % 16 == 0 && !world.isClient) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 SPEED_POS_UPDATE.send(connection, this);
@@ -359,7 +353,7 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
 
     @Override
     public void updateFastPassengerPosition(final Entity entity, final float tickDelta) {
-        final Vec3d position = fastPosition(tickDelta).add(0, -0.5, 0);
+        final Vec3d position = fastPosition(tickDelta).add(0, entity.getHeightOffset(), 0);
         entity.setPosition(position);
     }
 
@@ -415,11 +409,6 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     }
 
     @Override
-    public void setPosition(final double x, final double y, final double z) {
-        super.setPosition(x, y, z);
-    }
-
-    @Override
     public boolean saveNbt(final NbtCompound nbt) {
         return shouldSave() && saveSelfNbt(nbt);
     }
@@ -447,16 +436,14 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     }
 
     @Override
-    public void onStoppedTrackingBy(final ServerPlayerEntity player) {
-        super.onStoppedTrackingBy(player);
-    }
-
-    @Override
     public ActionResult previousInteractionAwareInteract(final PlayerEntity player, final Hand hand, final Entity previousInteraction) {
         if (world.isClient) {
             if (player == MinecraftClient.getInstance().player && player.getStackInHand(hand).isOf(Items.CHAIN)) {
                 if (previousInteraction instanceof MinecartHolder) {
-                    TRY_LINK.send(CoreMinecraftNetUtil.getConnection(player), this, (obj, buffer, ctx) -> buffer.writeInt(previousInteraction.getId()));
+                    TRY_LINK.send(CoreMinecraftNetUtil.getConnection(player), this, (obj, buffer, ctx) -> {
+                        buffer.writeInt(previousInteraction.getId());
+                        buffer.writeInt(player.getId());
+                    });
                     return ActionResult.SUCCESS;
                 }
             }
@@ -493,5 +480,30 @@ public class FastMinecartEntity extends Entity implements MinecartHolder, FastMo
     @Override
     public ItemStack getPickBlockStack() {
         return new ItemStack(TrainLibItems.FAST_MINECART_ITEM);
+    }
+
+    protected static boolean tryLink(final MinecartImpl first, final MinecartImpl second, final boolean force) {
+        final boolean off = first.attached() != null;
+        final boolean ofb = first.attachment() != null;
+
+        final boolean obf = second.attached() != null;
+        final boolean obb = second.attachment() != null;
+
+        if (!obb && !off) {
+            first.setAttached(second);
+            return true;
+        }
+
+        if (!obf && !ofb) {
+            second.setAttached(first);
+            return true;
+        }
+
+        if (!force) {
+            return false;
+        }
+
+        second.setAttached(first);
+        return true;
     }
 }

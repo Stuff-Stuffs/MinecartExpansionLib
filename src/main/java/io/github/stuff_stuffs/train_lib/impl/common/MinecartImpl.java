@@ -27,6 +27,9 @@ public class MinecartImpl implements Minecart {
     private static final double OPTIMAL_DISTANCE = 1.25;
     private static final double CART_MASS = 1;
     private final World world;
+    private final Tracker tracker;
+    private final OffRailHandler offRailHandler;
+    private final Entity holder;
     private double speed = 0;
     private double progress = 0;
     private Vec3d position = Vec3d.ZERO;
@@ -38,9 +41,6 @@ public class MinecartImpl implements Minecart {
     private @Nullable MinecartImpl attached;
     private @Nullable MinecartImpl attachment;
     private @Nullable Cargo cargo;
-    private final Tracker tracker;
-    private final OffRailHandler offRailHandler;
-    private final Entity holder;
     private double massAhead = 0;
     private double massBehind = 0;
     private boolean optimalDirection = false;
@@ -121,6 +121,9 @@ public class MinecartImpl implements Minecart {
         if (currentRail != null) {
             pos = currentRail.railPosition();
         }
+        if (cargo != null) {
+            cargo.tick(this);
+        }
         tracker.reset();
         double time = 1.0;
         while (time > 0 && count < TrainLib.MAX_RECURSION) {
@@ -140,7 +143,7 @@ public class MinecartImpl implements Minecart {
                     }
                 } else {
                     optimalDirection = optimalSpeed.get().distance() >= 0;
-                    speed = optimalSpeed.get().optimalDistance() * 0.01 + Math.abs(attached.speed) * Math.copySign(1.0, optimalSpeed.get().distance());
+                    speed = optimalSpeed.get().optimalDistance() * 0.05 + Math.abs(attached.speed) * Math.copySign(1.0, optimalSpeed.get().distance());
                     forwards = speed >= 0;
                 }
             } else {
@@ -245,6 +248,9 @@ public class MinecartImpl implements Minecart {
             position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
             final Vec3d tangent = rail.tangent(forwards ? length : 0);
             velocity = tangent.multiply(this.speed);
+            if (cargo != null) {
+                cargo.onRail(pos, rail, this, m - overflow);
+            }
             if (railInfo.forwards()) {
                 this.speed = Math.abs(speed);
             } else {
@@ -256,10 +262,13 @@ public class MinecartImpl implements Minecart {
             if (attached != null) {
                 applyVelocityModifierTrain(rail, Math.max(overflow, MathUtil.EPS));
             }
-            tracker.onMove(position(), tangent.multiply(forwards?1:-1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
+            tracker.onMove(position(), tangent.multiply(forwards ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - (m - overflow) * 0.5));
             return new MoveInfo(Math.max(overflow, MathUtil.EPS), nextPos);
         }
         progress = progress + maxMove;
+        if (cargo != null) {
+            cargo.onRail(pos, rail, this, m);
+        }
         progress(progress);
         velocity = rail.tangent(progress).multiply(this.speed);
         position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
@@ -267,7 +276,7 @@ public class MinecartImpl implements Minecart {
         final Vec3d tangent = rail.tangent(progress);
         velocity = tangent.multiply(this.speed);
         position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
-        tracker.onMove(position(), tangent.multiply(forwards?1:-1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
+        tracker.onMove(position(), tangent.multiply(forwards ? 1 : -1), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
         if (attached != null) {
             applyVelocityModifierTrain(rail, Math.max(m, MathUtil.EPS));
         }

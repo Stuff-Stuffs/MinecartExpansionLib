@@ -2,6 +2,7 @@ package io.github.stuff_stuffs.train_lib.impl.common;
 
 import com.mojang.datafixers.util.Pair;
 import io.github.stuff_stuffs.train_lib.api.common.cart.*;
+import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import it.unimi.dsi.fastutil.objects.Object2ReferenceOpenHashMap;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -14,8 +15,6 @@ import java.util.Optional;
 import java.util.Queue;
 
 public final class MinecartPathfinder {
-    private static final int MAX_RAIL_SEARCH = 8;
-
     private MinecartPathfinder() {
     }
 
@@ -88,7 +87,7 @@ public final class MinecartPathfinder {
                 return nodes.get(target);
             }
             final Node node = nodes.get(poll);
-            if (node.depth == MAX_RAIL_SEARCH) {
+            if (node.depth == TrainLib.MAX_RECURSION) {
                 continue;
             }
             Pair<Handle, Node> check = check(from, world, node, node.forwards);

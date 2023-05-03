@@ -60,7 +60,7 @@ public final class MinecartRailAdaptor {
             }
 
             private MinecartRail fromInfo(final Info info, final BlockPos railPosition) {
-                return new PoweredMinecartRail(info.start, info.end, 0, railPosition, info.entrance, info.exit, info.entranceDirection, info.exitDirection, 3, 0.1);
+                return new PoweredMinecartRail(info.start, info.end, 0, railPosition, info.entrance, info.exit, info.entranceDirection, info.exitDirection, 3, 0.4);
             }
         };
     }
