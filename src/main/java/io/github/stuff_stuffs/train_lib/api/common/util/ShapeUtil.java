@@ -27,11 +27,11 @@ public final class ShapeUtil {
         final double transMinY = Math.min(round(lower.y, scale), round(upper.y, scale));
         final double transMinZ = Math.min(round(lower.z, scale), round(upper.z, scale));
 
-        final double transMaxX = Math.min(round(lower.x, scale), round(upper.x, scale));
-        final double transMaxY = Math.min(round(lower.y, scale), round(upper.y, scale));
-        final double transMaxZ = Math.min(round(lower.z, scale), round(upper.z, scale));
+        final double transMaxX = Math.max(round(lower.x, scale), round(upper.x, scale));
+        final double transMaxY = Math.max(round(lower.y, scale), round(upper.y, scale));
+        final double transMaxZ = Math.max(round(lower.z, scale), round(upper.z, scale));
 
-        return new Box(transMinX, transMinY, transMinZ, transMaxX, transMaxY, transMaxZ);
+        return new Box(transMinX + 0.5, transMinY + 0.5, transMinZ + 0.5, transMaxX + 0.5, transMaxY + 0.5, transMaxZ + 0.5);
     }
 
     private static double round(final double d, final double scale) {

@@ -1,6 +1,6 @@
-package io.github.stuff_stuffs.train_lib.api.common.cart.basic;
+package io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.Minecart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -16,7 +16,7 @@ public class PoweredMinecartRail extends SimpleMinecartRail {
     }
 
     @Override
-    public void onRail(final Minecart minecart, final double startProgress, final double endProgress, final double time) {
+    public void onRail(final Cart minecart, final double startProgress, final double endProgress, final double time) {
         super.onRail(minecart, startProgress, endProgress, time);
         final double speed = minecart.speed();
         final double absolute = Math.abs(speed);

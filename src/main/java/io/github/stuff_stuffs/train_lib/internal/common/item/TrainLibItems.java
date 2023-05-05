@@ -5,7 +5,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 public final class TrainLibItems {
-    public static final FastMinecartItem FAST_MINECART_ITEM = new FastMinecartItem();
+    public static final MinecartItem FAST_MINECART_ITEM = new MinecartItem();
 
     public static void init() {
         Registry.register(Registries.ITEM, TrainLib.id("fast_minecart"), FAST_MINECART_ITEM);

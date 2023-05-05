@@ -5,7 +5,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
-public interface Minecart extends MinecartView {
+public interface Cart extends CartView {
     void speed(double speed);
 
     void progress(double progress);
@@ -19,10 +19,10 @@ public interface Minecart extends MinecartView {
     Entity holder();
 
     @Override
-    @Nullable Minecart attached();
+    @Nullable Cart attached();
 
     @Override
-    @Nullable Minecart attachment();
+    @Nullable Cart attachment();
 
     interface Tracker {
         void onMove(Vec3d position, Vec3d tangent, Vec3d up, double time);
@@ -35,8 +35,8 @@ public interface Minecart extends MinecartView {
     }
 
     interface OffRailHandler {
-        double handle(Minecart minecart, @Nullable Minecart following, Vec3d position, double time);
+        double handle(Cart minecart, @Nullable Cart following, Vec3d position, double time);
 
-        boolean shouldDisconnect(Minecart minecart, @Nullable Minecart following);
+        boolean shouldDisconnect(Cart minecart, @Nullable Cart following);
     }
 }

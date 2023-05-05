@@ -27,7 +27,7 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	modImplementation "alexiil.mc.lib:libnetworkstack-base:0.9.0"
+	modApi "alexiil.mc.lib:libnetworkstack-base:0.9.0"
 	include "alexiil.mc.lib:libnetworkstack-base:0.9.0"
 }
 

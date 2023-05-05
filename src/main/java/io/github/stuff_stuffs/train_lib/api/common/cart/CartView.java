@@ -3,12 +3,12 @@ package io.github.stuff_stuffs.train_lib.api.common.cart;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
-public interface MinecartView extends MinecartDataView {
+public interface CartView extends CartDataView {
     Vec3d velocity();
 
     @Override
-    @Nullable MinecartView attached();
+    @Nullable CartView attached();
 
     @Override
-    @Nullable MinecartView attachment();
+    @Nullable CartView attachment();
 }

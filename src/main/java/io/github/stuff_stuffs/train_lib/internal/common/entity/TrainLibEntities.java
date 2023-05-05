@@ -9,10 +9,10 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 public final class TrainLibEntities {
-    public static final EntityType<FastMinecartEntity> FAST_MINECART_ENTITY_TYPE = FabricEntityTypeBuilder.<FastMinecartEntity>create().spawnGroup(SpawnGroup.MISC).entityFactory(FastMinecartEntity::new).dimensions(EntityDimensions.fixed(1, 1)).build();
+    public static final EntityType<MinecartCartEntity> MINECART_CART_ENTITY_TYPE = FabricEntityTypeBuilder.<MinecartCartEntity>create().spawnGroup(SpawnGroup.MISC).entityFactory(MinecartCartEntity::new).dimensions(EntityDimensions.fixed(1, 1)).build();
 
     public static void init() {
-        Registry.register(Registries.ENTITY_TYPE, TrainLib.id("fast_minecart"), FAST_MINECART_ENTITY_TYPE);
+        Registry.register(Registries.ENTITY_TYPE, TrainLib.id("minecart"), MINECART_CART_ENTITY_TYPE);
     }
 
     private TrainLibEntities() {

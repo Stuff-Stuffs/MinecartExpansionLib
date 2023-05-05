@@ -4,7 +4,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 
-public interface MinecartDataView {
+public interface CartDataView {
     @Nullable Cargo cargo();
 
     double speed();
@@ -13,9 +13,9 @@ public interface MinecartDataView {
 
     double progress();
 
-    @Nullable MinecartDataView attached();
+    @Nullable CartDataView attached();
 
-    @Nullable MinecartDataView attachment();
+    @Nullable CartDataView attachment();
 
     double mass();
 

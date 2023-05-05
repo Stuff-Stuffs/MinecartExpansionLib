@@ -1,5 +1,9 @@
-package io.github.stuff_stuffs.train_lib.api.common.cart;
+package io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic;
 
+import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.CartView;
+import io.github.stuff_stuffs.train_lib.api.common.cart.Rail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -67,12 +71,12 @@ public class DelegatingMinecartRail implements MinecartRail {
     }
 
     @Override
-    public double friction(final MinecartView minecart, final double progress) {
+    public double friction(final CartView minecart, final double progress) {
         return delegate.friction(minecart, progress);
     }
 
     @Override
-    public void onRail(final Minecart minecart, final double startProgress, final double endProgress, final double time) {
+    public void onRail(final Cart minecart, final double startProgress, final double endProgress, final double time) {
         delegate.onRail(minecart, startProgress, endProgress, time);
     }
 }

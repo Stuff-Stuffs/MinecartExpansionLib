@@ -1,6 +1,6 @@
-package io.github.stuff_stuffs.train_lib.api.common.cart.basic;
+package io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.MinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;

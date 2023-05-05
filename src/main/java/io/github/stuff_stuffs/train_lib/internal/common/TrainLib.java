@@ -1,8 +1,13 @@
 package io.github.stuff_stuffs.train_lib.internal.common;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.*;
+import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.internal.common.entity.TrainLibEntities;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
 import net.fabricmc.api.ModInitializer;
@@ -19,14 +24,14 @@ public class TrainLib implements ModInitializer {
     public static final String MOD_ID = "train_lib";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final double MAX_SPEED = 4;
-    public static final int MAX_RECURSION = 8;
+    public static final int MINECART_RECURSION_LIMIT = 8;
 
     @Override
     public void onInitialize() {
         TrainLibEntities.init();
         CargoType.init();
         TrainLibItems.init();
-        MinecartAPI.MINECART_RAIL_BLOCK_API.registerFallback((world, pos, state, blockEntity, context) -> {
+        TrainLibApi.MINECART_RAIL_BLOCK_API.registerFallback((world, pos, state, blockEntity, context) -> {
             if (state.getBlock() instanceof AbstractRailBlock railBlock) {
                 final Property<RailShape> property = railBlock.getShapeProperty();
                 final RailShape shape = state.get(property);
@@ -45,7 +50,7 @@ public class TrainLib implements ModInitializer {
                             protected MinecartRail wrap(final MinecartRail rail) {
                                 return new DelegatingMinecartRail(rail) {
                                     @Override
-                                    public void onRail(final Minecart minecart, final double startProgress, final double endProgress, final double time) {
+                                    public void onRail(final Cart minecart, final double startProgress, final double endProgress, final double time) {
                                         super.onRail(minecart, startProgress, endProgress, time);
                                         if (minecart.cargo() instanceof EntityCargo) {
                                             minecart.cargo(null);

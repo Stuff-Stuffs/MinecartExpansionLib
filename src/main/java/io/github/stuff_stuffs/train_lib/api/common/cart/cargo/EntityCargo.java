@@ -2,7 +2,7 @@ package io.github.stuff_stuffs.train_lib.api.common.cart.cargo;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.stuff_stuffs.train_lib.api.common.cart.Minecart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.ItemStack;
@@ -31,7 +31,7 @@ public record EntityCargo(UUID id) implements Cargo {
     }
 
     @Override
-    public void tick(final Minecart minecart) {
+    public void tick(final Cart minecart) {
         final List<Entity> passengerList = new ArrayList<>(minecart.holder().getPassengerList());
         boolean main = false;
         for (final Entity entity : passengerList) {

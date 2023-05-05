@@ -1,8 +1,13 @@
 package io.github.stuff_stuffs.train_lib.internal.common;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.*;
-import io.github.stuff_stuffs.train_lib.api.common.cart.basic.PoweredMinecartRail;
-import io.github.stuff_stuffs.train_lib.api.common.cart.basic.SimpleMinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.CartDataView;
+import io.github.stuff_stuffs.train_lib.api.common.cart.CartView;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRailProvider;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.PoweredMinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.SimpleMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.util.math.BlockPos;
@@ -14,13 +19,13 @@ public final class MinecartRailAdaptor {
     private MinecartRailAdaptor() {
     }
 
-    public static MinecartRailProvider unpoweredShapeBased(RailShape shape, BlockPos pos) {
+    public static MinecartRailProvider unpoweredShapeBased(final RailShape shape, final BlockPos pos) {
         return new DelegatingMinecartRailProvider(shapeBased(shape, pos)) {
             @Override
-            protected MinecartRail wrap(MinecartRail rail) {
+            protected MinecartRail wrap(final MinecartRail rail) {
                 return new DelegatingMinecartRail(rail) {
                     @Override
-                    public double friction(MinecartView minecart, double progress) {
+                    public double friction(final CartView minecart, final double progress) {
                         return super.friction(minecart, progress) * 10;
                     }
                 };
@@ -31,31 +36,31 @@ public final class MinecartRailAdaptor {
     public static MinecartRailProvider poweredShapeBased(final RailShape shape, final BlockPos pos) {
         return new MinecartRailProvider() {
             @Override
-            public @Nullable NextRailInfo next(final MinecartDataView view, final MinecartRail current, @Nullable final Direction approachDirection) {
+            public @Nullable NextRailInfo<MinecartRail> next(final CartDataView view, final MinecartRail current, @Nullable final Direction approachDirection) {
                 if (approachDirection != null) {
                     final Info info = fromShape(shape, pos);
                     final MinecartRail rail = fromInfo(info, pos);
                     final double progress = MathUtil.unAppliedProject(info.start, info.end, view.position(), true);
-                    return new NextRailInfo(rail, progress, approachDirection == info.entranceDirection.getOpposite());
+                    return new NextRailInfo<>(rail, progress, approachDirection == info.entranceDirection.getOpposite());
                 }
                 return null;
             }
 
             @Override
-            public MinecartRail currentRail(final MinecartDataView view) {
+            public MinecartRail currentRail(final CartDataView view) {
                 final Info info = fromShape(shape, pos);
                 return fromInfo(info, pos);
             }
 
             @Override
-            public NextRailInfo snap(final MinecartView view) {
+            public NextRailInfo<MinecartRail> snap(final CartView view) {
                 final Info info = fromShape(shape, pos);
                 final MinecartRail rail = fromInfo(info, pos);
                 final double progress = MathUtil.unAppliedProject(info.start, info.end, view.position(), true);
                 if (view.velocity().dotProduct(info.end.subtract(info.start)) < 0) {
-                    return new NextRailInfo(rail, progress, false);
+                    return new NextRailInfo<>(rail, progress, false);
                 } else {
-                    return new NextRailInfo(rail, progress, true);
+                    return new NextRailInfo<>(rail, progress, true);
                 }
             }
 
@@ -68,31 +73,31 @@ public final class MinecartRailAdaptor {
     public static MinecartRailProvider shapeBased(final RailShape shape, final BlockPos pos) {
         return new MinecartRailProvider() {
             @Override
-            public @Nullable NextRailInfo next(final MinecartDataView view, final MinecartRail current, @Nullable final Direction approachDirection) {
+            public @Nullable NextRailInfo<MinecartRail> next(final CartDataView view, final MinecartRail current, @Nullable final Direction approachDirection) {
                 if (approachDirection != null) {
                     final Info info = fromShape(shape, pos);
                     final MinecartRail rail = fromInfo(info, pos);
                     final double progress = MathUtil.unAppliedProject(info.start, info.end, view.position(), true);
-                    return new NextRailInfo(rail, progress, approachDirection == info.entranceDirection.getOpposite());
+                    return new NextRailInfo<>(rail, progress, approachDirection == info.entranceDirection.getOpposite());
                 }
                 return null;
             }
 
             @Override
-            public MinecartRail currentRail(final MinecartDataView view) {
+            public MinecartRail currentRail(final CartDataView view) {
                 final Info info = fromShape(shape, pos);
                 return fromInfo(info, pos);
             }
 
             @Override
-            public NextRailInfo snap(final MinecartView view) {
+            public NextRailInfo<MinecartRail> snap(final CartView view) {
                 final Info info = fromShape(shape, pos);
                 final MinecartRail rail = fromInfo(info, pos);
                 final double progress = MathUtil.unAppliedProject(info.start, info.end, view.position(), true);
                 if (view.velocity().dotProduct(info.end.subtract(info.start)) < 0) {
-                    return new NextRailInfo(rail, progress, false);
+                    return new NextRailInfo<>(rail, progress, false);
                 } else {
-                    return new NextRailInfo(rail, progress, true);
+                    return new NextRailInfo<>(rail, progress, true);
                 }
             }
 

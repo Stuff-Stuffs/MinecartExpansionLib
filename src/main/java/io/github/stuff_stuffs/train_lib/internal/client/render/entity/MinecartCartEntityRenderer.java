@@ -5,7 +5,8 @@ import io.github.stuff_stuffs.train_lib.api.client.cargo.CargoRenderingRegistry;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
-import io.github.stuff_stuffs.train_lib.internal.common.entity.FastMinecartEntity;
+import io.github.stuff_stuffs.train_lib.internal.common.entity.AbstractCartEntity;
+import io.github.stuff_stuffs.train_lib.internal.common.entity.MinecartCartEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.entity.MinecartMovementTracker;
 import net.minecraft.client.model.*;
 import net.minecraft.client.render.OverlayTexture;
@@ -26,26 +27,28 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 
-public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends EntityRenderer<T> {
+public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends EntityRenderer<T> {
     public static final EntityModelLayer WHEEL_LAYER = new EntityModelLayer(TrainLib.id("cart_wheels"), "wheels");
     private static final Identifier TEXTURE = new Identifier("textures/entity/minecart.png");
     private static final Identifier WHEEL_TEXTURE = TrainLib.id("textures/entity/minecart_wheel.png");
     protected final EntityModel<T> model;
     protected final ModelPart wheelPart;
     protected final BlockRenderManager blockRenderManager;
+    protected final double scale;
 
 
-    public FastMinecartEntityRenderer(final EntityRendererFactory.Context ctx) {
+    public MinecartCartEntityRenderer(final EntityRendererFactory.Context ctx, final double scale) {
         super(ctx);
         model = new MinecartEntityModel<>(ctx.getPart(EntityModelLayers.MINECART));
         wheelPart = ctx.getPart(WHEEL_LAYER);
         blockRenderManager = ctx.getBlockRenderManager();
+        this.scale = scale;
     }
 
     @Override
     public void render(final T entity, final float yaw, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
-        final double heightOffset = 0.375;
+        final double heightOffset = 0.39;
         final MinecartMovementTracker tracker = entity.movementTracker();
         final MinecartMovementTracker.Entry entry = tracker.at(tickDelta);
         final MinecartMovementTracker.Entry next = tracker.next(tickDelta);
@@ -67,8 +70,9 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
         final Vec3d position = entity.fastPosition(tickDelta);
         matrices.translate(position.x - entity.lastRenderX, position.y - entity.lastRenderY, position.z - entity.lastRenderZ);
         matrices.multiply(quat);
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age) * entity.getDataTracker().get(FastMinecartEntity.DAMAGE_WOBBLE_STRENGTH) / 10.0F));
-        matrices.translate(0, heightOffset, 0);
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age) * entity.getDataTracker().get(MinecartCartEntity.DAMAGE_WOBBLE_STRENGTH) / 10.0F));
+        matrices.translate(0, heightOffset * scale, 0);
+        matrices.scale((float) scale, (float) scale, (float) scale);
         matrices.push();
         matrices.scale(-1, -1, 1);
         model.setAngles(null, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
@@ -99,7 +103,7 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
         wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
         matrices.pop();
 
-        final Cargo cargo = entity.minecart().cargo();
+        final Cargo cargo = entity.cart().cargo();
         if (cargo != null) {
             final CargoType<?> type = cargo.type();
             matrices.push();
@@ -110,10 +114,10 @@ public class FastMinecartEntityRenderer<T extends FastMinecartEntity> extends En
         matrices.pop();
     }
 
-    protected static <T extends Cargo> void renderCargo(final CargoType<T> type, final Cargo cargo, final FastMinecartEntity entity, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
+    protected static <T extends Cargo> void renderCargo(final CargoType<T> type, final Cargo cargo, final AbstractCartEntity entity, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
         final CargoRenderer<? super T> renderer = CargoRenderingRegistry.getInstance().get(type);
         if (renderer != null) {
-            renderer.renderCargo((T) cargo, entity.minecart(), tickDelta, matrices, vertexConsumers, light);
+            renderer.renderCargo((T) cargo, entity.cart(), tickDelta, matrices, vertexConsumers, light);
         }
     }
 

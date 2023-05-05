@@ -9,22 +9,24 @@ import net.minecraft.util.math.Vec3d;
 public final class TrainRailModelGenerator {
     private static final Direction[] DIRECTIONS = Direction.values();
 
-    public static void generate(final RailInfo info, final QuadEmitter emitter, final int railColor, final RenderMaterial railMaterial, final int tieColor, final RenderMaterial tieMaterial) {
+    public static void generate(final RailInfo info, final QuadEmitter emitter, int segments, final int railColor, final RenderMaterial railMaterial, final int tieColor, final RenderMaterial tieMaterial) {
         final double length = info.length();
-        final int steps = Math.max(Math.round((float) (length * 2)), 1);
+        final int steps = Math.max(Math.round((float) (length * 2)), segments);
         final double stepLength = length / (double) steps;
         for (int i = 0; i < steps; i++) {
             final double t = stepLength * i;
             final Vec3d normal = info.normal(t + stepLength * 0.5);
             final Vec3d up = info.up(t + stepLength * 0.5);
 
-            final Vec3d startLeft = info.posLeft(t);
-            final Vec3d endLeft = info.posLeft(t + stepLength);
-            emitCuboid(box(startLeft, endLeft, up, normal), emitter, railColor, railMaterial);
+            final Vec3d start = info.pos(t);
+            final Vec3d end = info.pos(t + stepLength);
+            final Vec3d startLeft = start.add(normal.multiply(10 / 16.0));
+            final Vec3d endLeft = end.add(normal.multiply(10 / 16.0));
+            emitCuboid(box(startLeft, endLeft, up.multiply(2 / 16.0), normal.multiply(2 / 16.0)), emitter, railColor, railMaterial);
 
-            final Vec3d startRight = info.posRight(t);
-            final Vec3d endRight = info.posRight(t + stepLength);
-            emitCuboid(box(startRight, endRight, up, normal), emitter, railColor, railMaterial);
+            final Vec3d startRight = start.subtract(normal.multiply(12 / 16.0));
+            final Vec3d endRight = end.subtract(normal.multiply(12 / 16.0));
+            emitCuboid(box(startRight, endRight, up.multiply(2 / 16.0), normal.multiply(2 / 16.0)), emitter, railColor, railMaterial);
         }
     }
 
@@ -72,10 +74,10 @@ public final class TrainRailModelGenerator {
     private static Vec3d vertex(final Box box, final Direction face, final int index) {
         return switch (face) {
             case UP -> switch (index) {
-                case 0 -> new Vec3d(box.minX, box.maxY, box.minZ);
-                case 1 -> new Vec3d(box.maxX, box.maxY, box.minZ);
-                case 2 -> new Vec3d(box.maxX, box.maxY, box.maxZ);
-                case 3 -> new Vec3d(box.minX, box.maxY, box.maxZ);
+                case 0 -> new Vec3d(box.minX, box.maxY, box.maxZ);
+                case 1 -> new Vec3d(box.maxX, box.maxY, box.maxZ);
+                case 2 -> new Vec3d(box.maxX, box.maxY, box.minZ);
+                case 3 -> new Vec3d(box.minX, box.maxY, box.minZ);
                 default -> throw new IndexOutOfBoundsException();
             };
             case DOWN -> switch (index) {
@@ -87,9 +89,9 @@ public final class TrainRailModelGenerator {
             };
             case EAST -> switch (index) {
                 case 0 -> new Vec3d(box.maxX, box.minY, box.minZ);
-                case 1 -> new Vec3d(box.maxX, box.minY, box.maxZ);
+                case 1 -> new Vec3d(box.maxX, box.maxY, box.minZ);
                 case 2 -> new Vec3d(box.maxX, box.maxY, box.maxZ);
-                case 3 -> new Vec3d(box.maxX, box.maxY, box.minZ);
+                case 3 -> new Vec3d(box.maxX, box.minY, box.maxZ);
                 default -> throw new IndexOutOfBoundsException();
             };
             case WEST -> switch (index) {
@@ -107,10 +109,10 @@ public final class TrainRailModelGenerator {
                 default -> throw new IndexOutOfBoundsException();
             };
             case SOUTH -> switch (index) {
-                case 0 -> new Vec3d(box.minX, box.minY, box.minZ);
-                case 1 -> new Vec3d(box.maxX, box.minY, box.minZ);
-                case 2 -> new Vec3d(box.maxX, box.maxY, box.minZ);
-                case 3 -> new Vec3d(box.minX, box.maxY, box.minZ);
+                case 0 -> new Vec3d(box.minX, box.minY, box.maxZ);
+                case 1 -> new Vec3d(box.maxX, box.minY, box.maxZ);
+                case 2 -> new Vec3d(box.maxX, box.maxY, box.maxZ);
+                case 3 -> new Vec3d(box.minX, box.maxY, box.maxZ);
                 default -> throw new IndexOutOfBoundsException();
             };
         };
@@ -119,9 +121,7 @@ public final class TrainRailModelGenerator {
     public interface RailInfo {
         double length();
 
-        Vec3d posLeft(double t);
-
-        Vec3d posRight(double t);
+        Vec3d pos(double t);
 
         Vec3d normal(double t);
 
