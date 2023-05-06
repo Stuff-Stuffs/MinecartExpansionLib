@@ -25,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.BiConsumer;
 
 public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
@@ -110,10 +111,10 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             }
             minecart = minecart.attachment();
         }
-        if (attachment != null) {
+        if (attachment != null && !world.isClient) {
             final CartPathfinder.SwapResult result = pathfinder.swap(this, attachment, world);
             if (result == CartPathfinder.SwapResult.SWAP) {
-                swap(-speed);
+                swap(speed);
             }
         }
     }
@@ -337,23 +338,16 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         while (minecart.attached() != null) {
             minecart = minecart.attached();
         }
-        final CartPathfinder.SwapResult from = pathfinder.swap(attached, this, world);
-        final CartPathfinder.SwapResult to = pathfinder.swap(minecart, minecart.attachment, world);
-        if (from == to) {
-            minecart.addSpeed(amount * ((forwards ^ minecart.forwards) ? 1 : -1));
-        } else {
-            minecart.addSpeed(amount * ((forwards ^ minecart.forwards) ? -1 : 1));
+        final OptionalDouble speed = pathfinder.trainAddSpeed(this, attached, minecart, minecart.attachment, amount, world);
+        if (speed.isPresent()) {
+            minecart.addSpeed(speed.getAsDouble());
         }
     }
 
     protected void applyGravityTrain(final Rail<T> rail, final double duration) {
         final double angle = rail.slopeAngle();
         final double gravity = 0.04 * angle;
-        AbstractCartImpl<T, ?> minecart = this;
-        while (minecart.attached != null) {
-            minecart = minecart.attached;
-        }
-        addSpeedTrain(gravity * duration * duration * 0.5);
+        addSpeedTrain(-gravity * duration * duration * 0.5);
     }
 
     protected double applyGravity(final Rail<T> rail, double duration) {
@@ -403,6 +397,10 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
 
     public boolean forwards() {
         return forwards;
+    }
+
+    public boolean optimalDirection() {
+        return optimalDirection;
     }
 
     public List<AbstractCartImpl<T, ?>> cars() {
@@ -489,18 +487,21 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
 
     private void swap(final double speed) {
         if (attachment != null) {
+            this.speed = Math.copySign(this.speed, optimalDirection ? -1 : 1);
+            optimalDirection = !optimalDirection;
             forwards = this.speed >= 0;
-            attachment.swap(speed * (forwards ? 1 : -1));
+            attachment.swap(speed);
         } else {
-            final Optional<CartPathfinder.Result> result = pathfinder.find(this, attached, 0.0, world);
+            final Optional<CartPathfinder.Result> result = pathfinder.find(attached, this, 0.0, world);
             if (result.isPresent()) {
-                this.speed = Math.copySign(1.0, -result.get().distance()) * Math.abs(speed);
+                this.speed = Math.copySign(1.0, result.get().distance()) * Math.abs(speed);
             } else {
                 this.speed = Math.copySign(1.0, this.speed) * -Math.abs(speed);
             }
             final boolean old = forwards;
             forwards = this.speed >= 0;
             if (old ^ forwards) {
+                optimalDirection = !optimalDirection;
                 forwardsAligned = !forwardsAligned;
             }
         }
@@ -529,7 +530,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
     @Override
     public void addSpeed(final double speed) {
         if (attached != null) {
-            addSpeedTrain(-speed);
+            addSpeedTrain(speed);
         } else {
             addSpeed0(speed);
         }

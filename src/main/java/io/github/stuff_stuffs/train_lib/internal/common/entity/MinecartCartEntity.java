@@ -29,11 +29,6 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void tickCart() {
-        minecart.tick();
-    }
-
-    @Override
     protected Item item() {
         return TrainLibItems.FAST_MINECART_ITEM;
     }

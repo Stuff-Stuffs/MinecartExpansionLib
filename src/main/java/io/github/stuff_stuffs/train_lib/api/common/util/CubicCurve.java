@@ -121,5 +121,30 @@ public class CubicCurve {
         public double length() {
             return length;
         }
+
+        public double snap(final Vec3d p) {
+            double best = Double.POSITIVE_INFINITY;
+            int bestSegment = -1;
+            for (int i = 0; i < points.length - 1; i++) {
+                final double project = MathUtil.unAppliedProject(points[i], points[i + 1], p, false);
+                if (Math.abs(project) < Math.abs(best)) {
+                    if (bestSegment == -1 || !(project < 0) || !(best >= 0)) {
+                        best = project;
+                        bestSegment = i;
+                    }
+                } else {
+                    final double start = lengthPrefixSum[i];
+                    final double end = lengthPrefixSum[i + 1];
+                    final double length = end - start;
+                    if (project >= 0 && project <= length) {
+                        best = project;
+                        bestSegment = i;
+                    }
+                }
+            }
+            final double start = lengthPrefixSum[bestSegment];
+            final double end = lengthPrefixSum[bestSegment + 1];
+            return best * (end - start) + start;
+        }
     }
 }

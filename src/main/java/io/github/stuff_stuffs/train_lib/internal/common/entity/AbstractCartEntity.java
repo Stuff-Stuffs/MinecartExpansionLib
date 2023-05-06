@@ -103,6 +103,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         int flags = buffer.readInt();
         final AbstractCartImpl<?, ?> cart = obj.cart();
         cart.position(new Vec3d(x, y, z));
+        obj.setPos(x, y, z);
         cart.progress(progress);
         cart.speed(speed);
         obj.applyFlags(flags, obj.cart());
@@ -152,7 +153,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         }
         final AbstractCartImpl<?, ?> cart = cart();
         wheelAngle = wheelAngle + (float) (cart.speed() * 9 / Math.PI);
-        tickCart();
+        cart.tick();
         if (cart.onRail()) {
             if (!world.isClient) {
                 final List<Vec3d> positions = movementTracker.positions();
@@ -181,7 +182,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 }
             }
         }
-        if (age % 16 == 0 && !world.isClient) {
+        if (age % 1 == 0 && !world.isClient) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 SPEED_POS_UPDATE.send(connection, this);
@@ -229,8 +230,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             dropStack(itemStack);
         }
     }
-
-    protected abstract void tickCart();
 
     @Override
     public boolean canHit() {
@@ -309,7 +308,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public boolean collidesWith(final Entity other) {
-        return other.isCollidable() && cart().cars().stream().filter(car -> car.holder() != null).noneMatch(car -> car.holder().isConnectedThroughVehicle(other));
+        return other.isCollidable() && cart().cars().stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(other));
     }
 
     @Override
@@ -318,17 +317,25 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             return;
         }
         final AbstractCartImpl<?, ?> cart = cart();
-        if (cart.cars().stream().filter(car -> car.holder() != null).noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
-            final Vec3d delta = entity.getPos().subtract(getPos());
-            final Vec3d velocity = cart.velocity();
-            if (velocity.lengthSquared() < MathUtil.EPS) {
-                cart.addSpeed(0.05);
-            } else {
-                final double dot = delta.dotProduct(velocity);
-                if (dot < 0) {
-                    cart.addSpeed(cart.speed() >= 0 ? 0.05 : -0.05);
+        if (cart.cars().stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
+            if(cart.massAhead()==cart.massBehind()) {
+                final Vec3d delta = entity.getPos().subtract(getPos());
+                final Vec3d velocity = cart.velocity();
+                if (velocity.lengthSquared() < MathUtil.EPS) {
+                    cart.addSpeed(0.05);
                 } else {
-                    cart.addSpeed(cart.speed() >= 0 ? -0.05 : 0.05);
+                    final double dot = delta.dotProduct(velocity);
+                    if (dot < 0) {
+                        cart.addSpeed(cart.speed() >= 0 ? 0.05 : -0.05);
+                    } else {
+                        cart.addSpeed(cart.speed() >= 0 ? -0.05 : 0.05);
+                    }
+                }
+            } else {
+                if(cart.massBehind() < cart.massAhead()) {
+                    cart.addSpeed(Math.copySign(0.05, cart.speed()));
+                } else {
+                    cart.addSpeed(Math.copySign(0.05, -cart.speed()));
                 }
             }
         }

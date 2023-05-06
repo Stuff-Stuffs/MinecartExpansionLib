@@ -10,10 +10,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayDeque;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
 
 public abstract class CartPathfinder<T extends Rail<T>, P> {
     public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.MINECART_RECURSION_LIMIT) {
@@ -24,10 +21,11 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
 
         @Override
         protected @Nullable Pair<BlockPos, RailProvider<MinecartRail>> next(final MinecartRail rail, final boolean forwards, final World world) {
-            final BlockPos next = forwards ? rail.exitPosition() : rail.entrancePosition();
+            BlockPos next = forwards ? rail.exitPosition() : rail.entrancePosition();
             MinecartRailProvider provider = TrainLibApi.MINECART_RAIL_BLOCK_API.find(world, next, null);
             if (provider == null) {
-                provider = TrainLibApi.MINECART_RAIL_BLOCK_API.find(world, next.down(), null);
+                next = next.down();
+                provider = TrainLibApi.MINECART_RAIL_BLOCK_API.find(world, next, null);
             }
             return provider == null ? null : Pair.of(next, provider);
         }
@@ -42,25 +40,59 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         if (!front.onRail() || !back.onRail()) {
             return SwapResult.BROKEN;
         }
-        final Node<?> search = search(back, front, world, extract(back.currentRail()), false);
-        final Node<?> other = search(back, front, world, extract(back.currentRail()), true);
+        final P pos = extract(front.currentRail());
+        final Node<?> search = search(front, back, world, pos, false);
+        final Node<?> other = search(front, back, world, pos, true);
         if (search == null && other == null) {
             return SwapResult.BROKEN;
         }
-        final Node<?> end = search == null ? other : other == null ? search : (realDistance(search, back) < realDistance(other, back)) ? search : other;
-        return back.speed() >= 0 ^ !end.forwards() ? SwapResult.OK : SwapResult.SWAP;
+        if (search == null) {
+            return SwapResult.OK;
+        }
+        if (other == null) {
+            return realDistance(search, back) < 1.5 ? SwapResult.OK : SwapResult.SWAP;
+        }
+        final Node<?> end = (realDistance(search, back) < realDistance(other, back)) ? search : other;
+        Node<?> first = end;
+        while (first.prev != null) {
+            first = first.prev;
+        }
+        return first.forwards ^ front.forwards() ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);
 
     protected abstract @Nullable Pair<P, RailProvider<T>> next(T rail, boolean forwards, World world);
 
+    public OptionalDouble trainAddSpeed(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> fromAttached, final AbstractCartImpl<T, P> to, final AbstractCartImpl<T, P> toAttachment, final double speed, final World world) {
+        if (!from.onRail() || !fromAttached.onRail() || !to.onRail() || !toAttachment.onRail()) {
+            return OptionalDouble.empty();
+        }
+        final boolean away;
+        {
+            final P pos = extract(from.currentRail());
+            final Node<?> search = search(from, fromAttached, world, pos, speed < 0);
+            final Node<?> other = search(from, fromAttached, world, pos, speed >= 0);
+            if (search == null && other == null) {
+                return OptionalDouble.empty();
+            }
+            final Node<?> end = search == null ? other : other == null ? search : (realDistance(search, fromAttached) < realDistance(other, fromAttached)) ? search : other;
+            Node<?> first = end;
+            while (first.prev != null) {
+                first = first.prev;
+            }
+            away = speed >= 0 ^ !first.forwards();
+        }
+        return OptionalDouble.of(away ? Math.copySign(speed, to.forwards() ? 1 : -1) : Math.copySign(speed, to.forwards() ? -1 : 1));
+    }
+
     public Optional<Result> find(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final double optimalDistance, final World world) {
         if (!from.onRail() || !to.onRail()) {
             return Optional.empty();
         }
-        final Node<?> search = search(from, to, world, extract(from.currentRail()), false);
-        final Node<?> other = search(from, to, world, extract(from.currentRail()), true);
+        final P pos = extract(from.currentRail());
+        final Node<?> search = search(from, to, world, pos, false);
+        final Node<?> other = search(from, to, world, pos, true);
         if (search == null && other == null) {
             return Optional.empty();
         }
@@ -84,9 +116,9 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         return d + Math.abs(to.progress() - node.progressOnEnter);
     }
 
-    protected @Nullable Node<T> search(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final World world, final P firstBlockPos, final boolean reverse) {
+    protected @Nullable Node<T> search(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final World world, final P firstPos, final boolean reverse) {
         final T rail = from.currentRail();
-        final Handle<P> handle = new Handle<>(firstBlockPos, rail.id());
+        final Handle<P> handle = new Handle<>(firstPos, rail.id());
         final boolean forwards = reverse ^ from.speed() >= 0;
         final Node<T> current = new Node<>(rail, forwards, from.progress(), forwards ? rail.length() - from.progress() : from.progress(), 0, null);
         final Map<Handle<P>, Node<T>> nodes = new Object2ReferenceOpenHashMap<>();
@@ -142,8 +174,8 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
     }
 
     public record Node<T extends Rail<T>>(T rail, boolean forwards, double progressOnEnter, double distance,
-                                             int depth,
-                                             @Nullable Node<T> prev) {
+                                          int depth,
+                                          @Nullable Node<T> prev) {
     }
 
     public record Result(double distance, double optimalDistance) {
