@@ -2,9 +2,9 @@ package io.github.stuff_stuffs.train_lib.impl.common;
 
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
-import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.cart.RailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
 import net.minecraft.entity.Entity;
@@ -35,8 +35,7 @@ public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
     }
 
     @Override
-    protected Either<MoveInfo<BlockPos>, Pair<BlockPos, RailProvider.NextRailInfo<MinecartRail>>> next(final BlockPos pos, final Direction exitDirection, final double time) {
-        final boolean forwards = forwards();
+    protected Either<MoveInfo<BlockPos>, Pair<BlockPos, RailProvider.NextRailInfo<MinecartRail>>> next(final BlockPos pos, final Direction exitDirection, final double time, final boolean forwards) {
         final MinecartRail rail = currentRail();
         if ((forwards && rail.exitPosition().equals(pos)) || (!forwards && rail.entrancePosition().equals(pos))) {
             return Either.left(new MoveInfo<>(time, null));

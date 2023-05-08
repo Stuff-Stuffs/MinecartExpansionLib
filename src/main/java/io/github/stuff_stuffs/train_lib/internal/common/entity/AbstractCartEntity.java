@@ -10,13 +10,14 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.entity.PreviousInteractionAwareEntity;
-import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
-import io.github.stuff_stuffs.train_lib.internal.client.TrainLibClient;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
-import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
+import io.github.stuff_stuffs.train_lib.internal.common.util.TrainTrackingUtil;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntListIterator;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.*;
@@ -68,32 +69,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             buffer.writeBoolean(false);
         }
     }).toClientOnly();
-    public static final NetIdDataK<AbstractCartEntity> ATTACHED_CHANGE = NET_PARENT.idData("attached_change", Integer.BYTES).setReadWrite((obj, buffer, ctx) -> {
-        final int attachedId = buffer.readInt();
-        if (attachedId == -1) {
-            obj.cart().setAttached(null);
-        } else {
-            final Entity entity = obj.world.getEntityById(attachedId);
-            final AbstractCartImpl<?, ?> extract = obj.extract(entity);
-            if (extract != null) {
-                obj.setAttached(extract);
-            } else {
-                TrainLibClient.LOGGER.error("Tried to attach cart {} to {}, but could not find {}", obj.getId(), attachedId, attachedId);
-            }
-        }
-    }, (obj, buffer, ctx) -> {
-        final AbstractCartImpl<?, ?> attached = obj.cart().attached();
-        if (attached != null) {
-            final AbstractCartImpl<?, ?> extract = obj.extract(attached.holder());
-            if (extract != null) {
-                buffer.writeInt(attached.holder().getId());
-            } else {
-                buffer.writeInt(-1);
-            }
-        } else {
-            buffer.writeInt(-1);
-        }
-    }).withTinySize().toClientOnly();
     public static final NetIdDataK<AbstractCartEntity> SPEED_POS_UPDATE = NET_PARENT.idData("speed_pos", Float.BYTES * 3 + Float.BYTES + Float.BYTES + Integer.BYTES).setReadWrite((obj, buffer, ctx) -> {
         final double x = buffer.readFloat();
         final double y = buffer.readFloat();
@@ -102,10 +77,10 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         final double speed = buffer.readFloat();
         int flags = buffer.readInt();
         final AbstractCartImpl<?, ?> cart = obj.cart();
+        cart.speed(speed);
         cart.position(new Vec3d(x, y, z));
         obj.setPos(x, y, z);
         cart.progress(progress);
-        cart.speed(speed);
         obj.applyFlags(flags, obj.cart());
     }, (obj, buffer, ctx) -> {
         final AbstractCartImpl<?, ?> cart = obj.cart();
@@ -134,6 +109,30 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             }
         }
     }).withTinySize().toServerOnly();
+    public static final NetIdDataK<AbstractCartEntity> TRAIN_UPDATE = NET_PARENT.idData("train_update").setReadWrite((obj, buffer, ctx) -> {
+        final int carCount = buffer.readVarInt();
+        IntList carIds = new IntArrayList(carCount);
+        for (int i = 0; i < carCount; i++) {
+            carIds.add(buffer.readInt());
+        }
+        List<Entity> holders = new ArrayList<>(carCount);
+        final IntListIterator iterator = carIds.iterator();
+        while (iterator.hasNext()) {
+            Entity entity = obj.world.getEntityById(iterator.nextInt());
+            if (entity != null) {
+                holders.add(entity);
+            } else {
+                return;
+            }
+        }
+        obj.linkAll(holders);
+    }, (obj, buffer, ctx) -> {
+        final List<? extends AbstractCartImpl<?, ?>> cars = obj.cart().cars();
+        buffer.writeVarInt(cars.size());
+        for (AbstractCartImpl<?, ?> car : cars) {
+            buffer.writeInt(car.holder().getId());
+        }
+    }).toClientOnly();
     private final MinecartMovementTracker movementTracker;
     public float wheelAngle;
     public static final TrackedData<Float> DAMAGE_WOBBLE_STRENGTH = DataTracker.registerData(AbstractCartEntity.class, TrackedDataHandlerRegistry.FLOAT);
@@ -172,7 +171,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 }
                 final List<Entity> connected = cart.cars().stream().map(AbstractCartImpl::holder).filter(Objects::nonNull).toList();
                 final double speed = Math.abs(cart.speed()) + 0.9;
-                final double massContribution = cart.mass() + cart.massAhead() + cart.massBehind();
+                final double massContribution = cart.mass();
                 final float damage = (float) (speed * speed * massContribution);
                 for (final Box box : boxes) {
                     final List<Entity> entities = world.getOtherEntities(this, box, i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
@@ -182,7 +181,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 }
             }
         }
-        if (age % 1 == 0 && !world.isClient) {
+        if (world.getTime() % 32 == 0 && !world.isClient) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 SPEED_POS_UPDATE.send(connection, this);
@@ -217,17 +216,17 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void dropItems(final DamageSource damageSource) {
         kill();
         if (world.getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
-            final ItemStack itemStack = new ItemStack(TrainLibItems.FAST_MINECART_ITEM);
+            final ItemStack itemStack = new ItemStack(item());
             if (hasCustomName()) {
                 itemStack.setCustomName(getCustomName());
             }
+            dropStack(itemStack);
             final Cargo cargo = cart().cargo();
             if (cargo != null) {
                 for (final ItemStack drop : cargo.drops(damageSource)) {
                     dropStack(drop);
                 }
             }
-            dropStack(itemStack);
         }
     }
 
@@ -313,42 +312,20 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public void pushAwayFrom(final Entity entity) {
-        if (world.isClient) {
-            return;
-        }
         final AbstractCartImpl<?, ?> cart = cart();
         if (cart.cars().stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
-            if(cart.massAhead()==cart.massBehind()) {
-                final Vec3d delta = entity.getPos().subtract(getPos());
-                final Vec3d velocity = cart.velocity();
-                if (velocity.lengthSquared() < MathUtil.EPS) {
-                    cart.addSpeed(0.05);
-                } else {
-                    final double dot = delta.dotProduct(velocity);
-                    if (dot < 0) {
-                        cart.addSpeed(cart.speed() >= 0 ? 0.05 : -0.05);
-                    } else {
-                        cart.addSpeed(cart.speed() >= 0 ? -0.05 : 0.05);
-                    }
-                }
+            if (cart.onRail()) {
+                cart.addSpeed(Math.copySign(0.05, cart.speed()));
             } else {
-                if(cart.massBehind() < cart.massAhead()) {
-                    cart.addSpeed(Math.copySign(0.05, cart.speed()));
-                } else {
-                    cart.addSpeed(Math.copySign(0.05, -cart.speed()));
-                }
+                super.pushAwayFrom(entity);
             }
         }
     }
 
     @Override
     public void remove(final RemovalReason reason) {
+        cart().destroy();
         super.remove(reason);
-        cart().setAttached(null);
-        final AbstractCartImpl<?, ?> attachment = cart().attachment();
-        if (attachment != null) {
-            attachment.setAttached(null);
-        }
     }
 
     @Override
@@ -396,11 +373,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void onStartedTrackingBy(final ServerPlayerEntity player) {
         final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
         CARGO_CHANGE.send(connection, this);
-        ATTACHED_CHANGE.send(connection, this);
         SPEED_POS_UPDATE.send(connection, this);
-        final AbstractCartImpl<?, ?> attachment = cart().attachment();
-        if (attachment != null && attachment.holder() instanceof AbstractCartEntity entity) {
-            ATTACHED_CHANGE.send(connection, entity);
+        if (TrainTrackingUtil.shouldSend(this, player)) {
+            TRAIN_UPDATE.send(connection, this);
         }
     }
 
@@ -437,7 +412,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract Item item();
 
-    protected abstract void setAttached(AbstractCartImpl<?, ?> attached);
+    protected abstract void linkAll(List<Entity> holders);
 
     protected abstract void setAttachment(AbstractCartImpl<?, ?> attached);
 

@@ -31,7 +31,7 @@ public interface Cart extends CartView {
 
         void onCargoChange();
 
-        void onAttachedChange();
+        void trainChange();
     }
 
     interface OffRailHandler {

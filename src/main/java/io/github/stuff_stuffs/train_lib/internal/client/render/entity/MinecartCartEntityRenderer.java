@@ -77,7 +77,7 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
         matrices.scale(-1, -1, 1);
         model.setAngles(null, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
         final VertexConsumer vertexConsumer = vertexConsumers.getBuffer(model.getLayer(getTexture(entity)));
-        model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, 1.0F, 1.0F, 1.0F, 1.0F);
+        model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, entity.cart().attached() == null ? 0.0F : 1.0F, 1.0F, 1.0F, 1.0F);
 
         wheelPart.setAngles(0, 0, entity.wheelAngle);
         matrices.pop();
@@ -112,6 +112,7 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             matrices.pop();
         }
         matrices.pop();
+        entity.resetPosition();
     }
 
     protected static <T extends Cargo> void renderCargo(final CargoType<T> type, final Cargo cargo, final AbstractCartEntity entity, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {

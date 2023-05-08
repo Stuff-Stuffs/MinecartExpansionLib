@@ -20,7 +20,7 @@ public class PoweredMinecartRail extends SimpleMinecartRail {
         super.onRail(minecart, startProgress, endProgress, time);
         final double speed = minecart.speed();
         final double absolute = Math.abs(speed);
-        if (absolute < maxSpeed) {
+        if (absolute < maxSpeed && absolute != 0) {
             final double s = Math.signum(speed) * (maxSpeed * accelerationFunction(time * accelerationFactor, absolute / maxSpeed));
             minecart.addSpeed(s);
         }

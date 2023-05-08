@@ -10,7 +10,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
 
 public abstract class CartPathfinder<T extends Rail<T>, P> {
     public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.MINECART_RECURSION_LIMIT) {
@@ -50,41 +53,18 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
             return SwapResult.OK;
         }
         if (other == null) {
-            return realDistance(search, back) < 1.5 ? SwapResult.OK : SwapResult.SWAP;
+            return SwapResult.SWAP;
         }
-        final Node<?> end = (realDistance(search, back) < realDistance(other, back)) ? search : other;
-        Node<?> first = end;
+        Node<?> first = (realDistance(search, back) < realDistance(other, back)) ? search : other;
         while (first.prev != null) {
             first = first.prev;
         }
-        return first.forwards ^ front.forwards() ? SwapResult.SWAP : SwapResult.OK;
+        return first.forwards ^ front.speed() < 0 ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);
 
     protected abstract @Nullable Pair<P, RailProvider<T>> next(T rail, boolean forwards, World world);
-
-    public OptionalDouble trainAddSpeed(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> fromAttached, final AbstractCartImpl<T, P> to, final AbstractCartImpl<T, P> toAttachment, final double speed, final World world) {
-        if (!from.onRail() || !fromAttached.onRail() || !to.onRail() || !toAttachment.onRail()) {
-            return OptionalDouble.empty();
-        }
-        final boolean away;
-        {
-            final P pos = extract(from.currentRail());
-            final Node<?> search = search(from, fromAttached, world, pos, speed < 0);
-            final Node<?> other = search(from, fromAttached, world, pos, speed >= 0);
-            if (search == null && other == null) {
-                return OptionalDouble.empty();
-            }
-            final Node<?> end = search == null ? other : other == null ? search : (realDistance(search, fromAttached) < realDistance(other, fromAttached)) ? search : other;
-            Node<?> first = end;
-            while (first.prev != null) {
-                first = first.prev;
-            }
-            away = speed >= 0 ^ !first.forwards();
-        }
-        return OptionalDouble.of(away ? Math.copySign(speed, to.forwards() ? 1 : -1) : Math.copySign(speed, to.forwards() ? -1 : 1));
-    }
 
     public Optional<Result> find(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final double optimalDistance, final World world) {
         if (!from.onRail() || !to.onRail()) {
@@ -130,6 +110,9 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         while (!handles.isEmpty()) {
             final Handle<P> poll = handles.poll();
             if (poll.equals(target)) {
+                if (first) {
+                    return new Node<>(rail, from.progress() < to.progress(), current.progressOnEnter, current.distance, 0, null);
+                }
                 return nodes.get(target);
             }
             final Node<T> node = nodes.get(poll);

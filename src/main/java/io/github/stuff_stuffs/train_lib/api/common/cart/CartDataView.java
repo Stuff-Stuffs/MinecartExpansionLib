@@ -19,9 +19,5 @@ public interface CartDataView {
 
     double mass();
 
-    double massBehind();
-
-    double massAhead();
-
     boolean forwardsAligned();
 }
