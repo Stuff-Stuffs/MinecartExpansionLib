@@ -10,7 +10,9 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.entity.PreviousInteractionAwareEntity;
+import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
+import io.github.stuff_stuffs.train_lib.impl.common.MinecartImpl;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
@@ -77,11 +79,11 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         final double speed = buffer.readFloat();
         int flags = buffer.readInt();
         final AbstractCartImpl<?, ?> cart = obj.cart();
-        cart.speed(speed);
         cart.position(new Vec3d(x, y, z));
         obj.setPos(x, y, z);
         cart.progress(progress);
         obj.applyFlags(flags, obj.cart());
+        cart.speed(speed);
     }, (obj, buffer, ctx) -> {
         final AbstractCartImpl<?, ?> cart = obj.cart();
         buffer.writeFloat((float) cart.position().getX());
@@ -239,7 +241,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void setVelocity(final Vec3d velocity) {
         super.setVelocity(velocity);
         if (!cart().onRail()) {
-            cart().speed(velocity.length());
+            cart().speed(velocity.length()*0.01);
         }
     }
 
@@ -313,9 +315,35 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     @Override
     public void pushAwayFrom(final Entity entity) {
         final AbstractCartImpl<?, ?> cart = cart();
-        if (cart.cars().stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
+        final List<? extends AbstractCartImpl<?, ?>> cars = cart.cars();
+        if (cars.stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
             if (cart.onRail()) {
-                cart.addSpeed(Math.copySign(0.05, cart.speed()));
+                double massAhead = 0;
+                double massBehind = 0;
+                AbstractCartImpl<?,?> ahead = cart.attached();
+                while (ahead!=null) {
+                    massAhead += ahead.mass();
+                    ahead = ahead.attached();
+                }
+                AbstractCartImpl<?,?> behind = cart.attachment();
+                while (behind!=null) {
+                    massBehind += behind.mass();
+                    behind = behind.attachment();
+                }
+                if(MathUtil.approxEquals(massAhead, massBehind)) {
+                    Vec3d push = cart.position().subtract(entity.getPos());
+                    Vec3d velocity = cart.velocity();
+                    double dot = push.dotProduct(velocity);
+                    if(MathUtil.approxEquals(dot, 0) || dot > 0) {
+                        cart.addSpeed(Math.copySign(0.05, cart.speed()));
+                    } else {
+                        cart.addSpeed(Math.copySign(0.05, -cart.speed()));
+                    }
+                } else if(massAhead > massBehind) {
+                    cart.addSpeed(Math.copySign(0.05, cart.speed()));
+                } else {
+                    cart.addSpeed(Math.copySign(0.05, -cart.speed()));
+                }
             } else {
                 super.pushAwayFrom(entity);
             }

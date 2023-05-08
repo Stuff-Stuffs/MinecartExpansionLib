@@ -59,7 +59,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         while (first.prev != null) {
             first = first.prev;
         }
-        return first.forwards ^ front.speed() < 0 ? SwapResult.SWAP : SwapResult.OK;
+        return first.forwards ^ !(front.speed() >= 0) ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);

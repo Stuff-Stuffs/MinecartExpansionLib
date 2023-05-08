@@ -15,6 +15,9 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
+    private static final double BUFFER_SPACE = 0.625;
+    private static final double EMPTY_CART_MASS = 1;
+
     public <T extends Entity & MinecartHolder> MinecartImpl(final World world, final Tracker tracker, final OffRailHandler offRailHandler, final T holder) {
         super(world, tracker, offRailHandler, holder, CartPathfinder.MINECART_PATHFINDER);
     }
@@ -55,6 +58,16 @@ public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
     @Override
     protected BlockPos findOrDefault(final Vec3d position, final World world) {
         return BlockPos.ofFloored(position);
+    }
+
+    @Override
+    protected double emptyCartMass() {
+        return EMPTY_CART_MASS;
+    }
+
+    @Override
+    public double bufferSpace() {
+        return BUFFER_SPACE;
     }
 
     @Override

@@ -37,6 +37,6 @@ public interface Cart extends CartView {
     interface OffRailHandler {
         double handle(Cart minecart, @Nullable Cart following, Vec3d position, double time);
 
-        boolean shouldDisconnect(Cart minecart, @Nullable Cart following);
+        boolean shouldDisconnect(Cart minecart, Cart following);
     }
 }

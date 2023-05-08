@@ -15,6 +15,7 @@ import net.minecraft.entity.MovementType;
 import net.minecraft.item.Item;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -141,10 +142,13 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
                 //TODO partial movements
                 setPosition(position);
                 if (following != null) {
-                    final Vec3d distance = following.position().subtract(getPos());
+                    Vec3d distance = following.position().subtract(getPos()).withAxis(Direction.Axis.Y, 0);
+                    final double optimal = minecart.bufferSpace() + following.bufferSpace();
+                    if (distance.lengthSquared() < 0.1) {
+                        distance = new Vec3d(optimal, 0, 0);
+                    }
                     final double length = distance.length();
-                    final double optimal = 1.5;
-                    final Vec3d velocity = following.holder().getVelocity().add(distance.multiply(1 / length).multiply(length - optimal));
+                    final Vec3d velocity = following.holder().getVelocity().add(distance.multiply((1 / length) * (length-optimal)));
                     setVelocity(velocity);
                     move(MovementType.SELF, velocity.multiply(time));
                     minecart.position(getPos());
@@ -158,8 +162,8 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
             }
 
             @Override
-            public boolean shouldDisconnect(final Cart minecart, @Nullable final Cart following) {
-                return following == null || minecart.position().squaredDistanceTo(following.position()) > (5 * 5);
+            public boolean shouldDisconnect(final Cart minecart, final Cart following) {
+                return minecart.position().squaredDistanceTo(following.position()) > (5 * 5);
             }
         };
     }
