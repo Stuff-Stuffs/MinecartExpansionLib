@@ -213,6 +213,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         }
         currentRail = snap.rail();
         progress = snap.progress();
+        this.position = currentRail.position(progress);
         onRail = true;
         currentRail.onEnter(this);
     }
@@ -400,6 +401,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             for (final AbstractCartImpl<T, P> c : carts) {
                 c.tracker.trainChange();
             }
+            cart.train = new Train<>(cart);
         }
 
         public double speed() {
@@ -476,6 +478,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             if (Math.abs(speed) < Float.MIN_VALUE) {
                 speed = 0;
             }
+            carts.removeIf(AbstractCartImpl::isDestroyed);
             IntSet breaks = resetForwards();
             for (final AbstractCartImpl<T, P> cart : carts) {
                 cart.position(cart.holder.getPos());
@@ -487,8 +490,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
                     final AbstractCartImpl<T, P> cart = carts.get(i);
                     final AbstractCartImpl<T, P> following = i == 0 ? null : carts.get(i - 1);
                     cart.tracker.reset();
-                    final P pos = cart.currentRail == null ? cart.findOrDefault(cart.position, cart.world) : cart.positionFromRail(cart.currentRail);
-                    move(cart, following, pos);
+                    move(cart, following);
                     if (following != null && !cart.onRail && cart.offRailHandler.shouldDisconnect(cart, following)) {
                         offRailBreaks.add(i - 1);
                     }
@@ -498,8 +500,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
                     final AbstractCartImpl<T, P> cart = carts.get(i);
                     final AbstractCartImpl<T, P> following = i == size - 1 ? null : carts.get(i + 1);
                     cart.tracker.reset();
-                    final P pos = cart.currentRail == null ? cart.findOrDefault(cart.position, cart.world) : cart.positionFromRail(cart.currentRail);
-                    move(cart, following, pos);
+                    move(cart, following);
                     if (following != null && !cart.onRail && cart.offRailHandler.shouldDisconnect(cart, following)) {
                         offRailBreaks.add(i);
                     }
@@ -511,7 +512,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
                     cart.holder.setVelocity(cart.velocity);
                 }
             }
-            if (!breaks.isEmpty() || !offRailBreaks.isEmpty()) {
+            if (!carts.get(0).world.isClient && !breaks.isEmpty() || !offRailBreaks.isEmpty()) {
                 //check that it hasn't been fixed by movement
                 breaks = resetForwards();
                 if (!breaks.isEmpty() || !offRailBreaks.isEmpty()) {
@@ -522,9 +523,10 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             }
         }
 
-        private void move(final AbstractCartImpl<T, P> cart, @Nullable final AbstractCartImpl<T, P> following, P pos) {
+        private void move(final AbstractCartImpl<T, P> cart, @Nullable final AbstractCartImpl<T, P> following) {
             double time = 1.0;
             int count = 0;
+            P pos = cart.currentRail == null ? cart.findOrDefault(cart.position, cart.world) : cart.positionFromRail(cart.currentRail);
             while (time > 0.0 && count < 8) {
                 final MoveInfo<P> info = cart.tryMove(pos, time, following);
                 if (info == null) {
@@ -590,8 +592,12 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         private static <T extends Rail<T>, P> void split(final Train<T, P> train, final IntSortedSet breaks) {
             final IntBidirectionalIterator iterator = breaks.iterator();
             int last = -1;
+            int first = -1;
             while (iterator.hasNext()) {
                 final int current = iterator.nextInt();
+                if (first == -1) {
+                    first = current;
+                }
                 final List<AbstractCartImpl<T, P>> carts = train.carts.subList(last + 1, current + 1);
                 final Train<T, P> section = new Train<>(carts, train.speed);
                 for (final AbstractCartImpl<T, P> cart : carts) {
@@ -601,6 +607,9 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
                     cart.tracker.trainChange();
                 }
                 last = current;
+            }
+            if (first != -1) {
+                train.carts.subList(first + 1, train.carts.size()).clear();
             }
         }
     }

@@ -12,7 +12,6 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.entity.PreviousInteractionAwareEntity;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
-import io.github.stuff_stuffs.train_lib.impl.common.MinecartImpl;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
@@ -100,7 +99,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         if (actor instanceof ServerPlayerEntity player) {
             if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
                 AbstractCartImpl<?, ?> cart = obj.extract(other);
-                if (cart != null) {
+                if (cart != null && !obj.cart().isDestroyed() && !cart.isDestroyed()) {
                     if (obj.tryLink(obj.cart(), cart, true)) {
                         if (player.interactionManager.getGameMode().isSurvivalLike()) {
                             player.getStackInHand(Hand.MAIN_HAND).decrement(1);
@@ -189,6 +188,14 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 SPEED_POS_UPDATE.send(connection, this);
             }
         }
+        if (world.getTime() % 128 == 0 && !world.isClient) {
+            for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+                if (TrainTrackingUtil.shouldSend(this, player)) {
+                    final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
+                    TRAIN_UPDATE.send(connection, this);
+                }
+            }
+        }
     }
 
     @Override
@@ -241,7 +248,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void setVelocity(final Vec3d velocity) {
         super.setVelocity(velocity);
         if (!cart().onRail()) {
-            cart().speed(velocity.length()*0.01);
+            cart().speed(velocity.length() * 0.01);
         }
     }
 
@@ -320,26 +327,26 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             if (cart.onRail()) {
                 double massAhead = 0;
                 double massBehind = 0;
-                AbstractCartImpl<?,?> ahead = cart.attached();
-                while (ahead!=null) {
+                AbstractCartImpl<?, ?> ahead = cart.attached();
+                while (ahead != null) {
                     massAhead += ahead.mass();
                     ahead = ahead.attached();
                 }
-                AbstractCartImpl<?,?> behind = cart.attachment();
-                while (behind!=null) {
+                AbstractCartImpl<?, ?> behind = cart.attachment();
+                while (behind != null) {
                     massBehind += behind.mass();
                     behind = behind.attachment();
                 }
-                if(MathUtil.approxEquals(massAhead, massBehind)) {
-                    Vec3d push = cart.position().subtract(entity.getPos());
-                    Vec3d velocity = cart.velocity();
-                    double dot = push.dotProduct(velocity);
-                    if(MathUtil.approxEquals(dot, 0) || dot > 0) {
+                if (MathUtil.approxEquals(massAhead, massBehind)) {
+                    final Vec3d push = cart.position().subtract(entity.getPos());
+                    final Vec3d velocity = cart.velocity();
+                    final double dot = push.dotProduct(velocity);
+                    if (MathUtil.approxEquals(dot, 0) || dot > 0) {
                         cart.addSpeed(Math.copySign(0.05, cart.speed()));
                     } else {
                         cart.addSpeed(Math.copySign(0.05, -cart.speed()));
                     }
-                } else if(massAhead > massBehind) {
+                } else if (massAhead > massBehind) {
                     cart.addSpeed(Math.copySign(0.05, cart.speed()));
                 } else {
                     cart.addSpeed(Math.copySign(0.05, -cart.speed()));

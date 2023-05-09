@@ -48,6 +48,9 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
     @Override
     public void render(final T entity, final float yaw, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
+        if(entity.cart().isDestroyed()) {
+            return;
+        }
         final double heightOffset = 0.39;
         final MinecartMovementTracker tracker = entity.movementTracker();
         final MinecartMovementTracker.Entry entry = tracker.at(tickDelta);
@@ -112,7 +115,6 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             matrices.pop();
         }
         matrices.pop();
-        entity.resetPosition();
     }
 
     protected static <T extends Cargo> void renderCargo(final CargoType<T> type, final Cargo cargo, final AbstractCartEntity entity, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
