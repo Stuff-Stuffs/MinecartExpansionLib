@@ -14,9 +14,10 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.function.IntSupplier;
 
 public abstract class CartPathfinder<T extends Rail<T>, P> {
-    public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.MINECART_RECURSION_LIMIT) {
+    public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.CONFIG::maxPathfindingLimit) {
         @Override
         protected BlockPos extract(final MinecartRail rail) {
             return rail.railPosition();
@@ -33,9 +34,9 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
             return provider == null ? null : Pair.of(next, provider);
         }
     };
-    private final int recursionLimit;
+    private final IntSupplier recursionLimit;
 
-    protected CartPathfinder(final int limit) {
+    protected CartPathfinder(final IntSupplier limit) {
         recursionLimit = limit;
     }
 
@@ -107,6 +108,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         final Handle<P> target = new Handle<>(extract(to.currentRail()), to.currentRail().id());
         final Queue<Handle<P>> handles = new ArrayDeque<>();
         handles.add(handle);
+        final int recursionLimit = this.recursionLimit.getAsInt();
         while (!handles.isEmpty()) {
             final Handle<P> poll = handles.poll();
             if (poll.equals(target)) {

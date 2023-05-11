@@ -10,6 +10,8 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvide
 import io.github.stuff_stuffs.train_lib.api.common.event.CartEvent;
 import io.github.stuff_stuffs.train_lib.api.common.event.CartEventEmitter;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
+import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
+import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfig;
 import it.unimi.dsi.fastutil.ints.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
@@ -210,6 +212,9 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         checkDestroyed();
         this.position = position;
         emitter.setPos(position);
+        if (currentRail != null) {
+            currentRail.onExit(this);
+        }
         currentRail = null;
         onRail = false;
         final RailProvider<T> provider = tryGetProvider(findOrDefault(position, world));
@@ -302,6 +307,7 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             rail.onRail(this, oldProgress, progress, m - overflow);
             position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
             emitter.setPos(position);
+            currentRail.onExit(this);
             currentRail = railInfo.rail();
             if (speed() >= 0 ^ railInfo.forwards()) {
                 inverted = !inverted;
@@ -370,6 +376,9 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         public boolean link(final AbstractCartImpl<T, P> other, final boolean force) {
             if (other.train == this) {
                 return true;
+            }
+            if (carts.size() + other.train.carts.size() > TrainLib.CONFIG.maxTrainSize()) {
+                return false;
             }
             if (force) {
                 carts.addAll(other.train.carts);
@@ -530,8 +539,9 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             return speed;
         }
 
-        public void addSpeed(final AbstractCartImpl<T, P> cart, final double speed) {
-            this.speed = this.speed + (cart.inverted ? -1 : 1) * speed * cart.mass() / mass;
+        public void addSpeed(final AbstractCartImpl<T, P> cart, double speed) {
+            speed = this.speed + (cart.inverted ? -1 : 1) * speed * cart.mass() / mass;
+            this.speed = Math.copySign(Math.min(Math.abs(speed), TrainLib.CONFIG.maxSpeed()), speed);
         }
 
         public void speed(final AbstractCartImpl<T, P> cart, final double speed) {
@@ -652,7 +662,8 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             if (cart.currentRail != null) {
                 cart.emitter.emit(new CartEvent.RailOccupied(cart.currentPosition(cart.currentRail), cart.currentRail.id(), cart));
             }
-            while (time > 0.0 && count < 8) {
+            final int recursionLimit = TrainLib.CONFIG.maxRecursion();
+            while (time > 0.0 && count < recursionLimit) {
                 final MoveInfo<P> info = cart.tryMove(pos, time, following);
                 if (info == null) {
                     cart.offRailHandler.handle(cart, following, cart.position, time);
@@ -686,8 +697,10 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
 
         public double applyVelocityModifier(final AbstractCartImpl<T, P> cart, final T rail, final double remaining) {
             final double factor = cart.mass() / mass;
+            final TrainLibConfig config = TrainLib.CONFIG;
             speed = speed - speed * MathHelper.clamp(factor * (rail.friction(cart, cart.progress) * remaining * remaining * 0.5), 0, 1);
-            final double angle = rail.slopeAngle() * (cart.inverted ? -1 : 1) * 0.04;
+            final double gravity = config.gravity();
+            final double angle = rail.slopeAngle() * (cart.inverted ? -1 : 1) * gravity;
             speed = speed - factor * (remaining * remaining * 0.5 * angle);
             return remaining;
         }

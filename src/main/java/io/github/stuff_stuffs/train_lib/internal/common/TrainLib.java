@@ -8,6 +8,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRailProvider;
+import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfig;
 import io.github.stuff_stuffs.train_lib.internal.common.entity.TrainLibEntities;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
 import net.fabricmc.api.ModInitializer;
@@ -23,8 +24,7 @@ import org.slf4j.LoggerFactory;
 public class TrainLib implements ModInitializer {
     public static final String MOD_ID = "train_lib";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final double MAX_SPEED = 4;
-    public static final int MINECART_RECURSION_LIMIT = 8;
+    public static final TrainLibConfig CONFIG = TrainLibConfig.createAndLoad();
 
     @Override
     public void onInitialize() {

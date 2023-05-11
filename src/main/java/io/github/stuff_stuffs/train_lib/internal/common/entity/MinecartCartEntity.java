@@ -6,6 +6,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
 import io.github.stuff_stuffs.train_lib.impl.common.MinecartImpl;
+import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
 import io.github.stuff_stuffs.train_lib.internal.common.util.TrainTrackingUtil;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
@@ -140,6 +141,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
             public double handle(final Cart minecart, @Nullable final Cart following, final Vec3d position, final double time) {
                 //TODO partial movements
                 setPosition(position);
+                double gravity = TrainLib.CONFIG.gravity();
                 if (following != null) {
                     Vec3d distance = following.position().subtract(getPos()).withAxis(Direction.Axis.Y, 0);
                     final double optimal = minecart.bufferSpace() + following.bufferSpace();
@@ -147,13 +149,13 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
                         distance = new Vec3d(optimal, 0, 0);
                     }
                     final double length = distance.length();
-                    final Vec3d velocity = following.holder().getVelocity().add(distance.multiply((1 / length) * (length-optimal)));
+                    final Vec3d velocity = following.holder().getVelocity().add(distance.multiply((1 / length) * (length - optimal))).add(0, -gravity, 0);
                     setVelocity(velocity);
                     move(MovementType.SELF, velocity.multiply(time));
                     minecart.position(getPos());
                     return 0;
                 }
-                final Vec3d add = getVelocity().multiply(0.96).add(0, -0.04, 0);
+                final Vec3d add = getVelocity().multiply(0.96).add(0, -gravity, 0);
                 setVelocity(add);
                 move(MovementType.SELF, add.multiply(time));
                 minecart.position(getPos());

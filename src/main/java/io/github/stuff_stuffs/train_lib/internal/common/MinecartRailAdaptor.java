@@ -9,6 +9,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvide
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.PoweredMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.SimpleMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
+import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfigModel;
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;

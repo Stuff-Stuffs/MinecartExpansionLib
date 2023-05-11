@@ -16,6 +16,14 @@ repositories {
 		name = "AlexIIL"
 		url = "https://maven.alexiil.uk/"
 	}
+	maven {
+		name = "Wisp Forest"
+		url 'https://maven.wispforest.io'
+	}
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
 }
 
 dependencies {
@@ -27,8 +35,11 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	modApi "alexiil.mc.lib:libnetworkstack-base:0.9.0"
-	include "alexiil.mc.lib:libnetworkstack-base:0.9.0"
+	modApi "alexiil.mc.lib:libnetworkstack-base:${project.libnetworkstack_version}"
+	include "alexiil.mc.lib:libnetworkstack-base:${project.libnetworkstack_version}"
+	modApi("com.terraformersmc:modmenu:${project.modmenu_version}")
+
+	annotationProcessor modImplementation("io.wispforest:owo-lib:${project.owo_version}")
 }
 
 processResources {
