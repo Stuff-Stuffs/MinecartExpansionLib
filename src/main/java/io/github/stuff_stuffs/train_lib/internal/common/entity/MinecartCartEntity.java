@@ -54,9 +54,9 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void setAttachment(final AbstractCartImpl<?, ?> attached) {
-        if (attached instanceof MinecartImpl other) {
-            minecart.train().link(other);
+    protected void attach(final AbstractCartImpl<?, ?> toAttach) {
+        if (toAttach instanceof MinecartImpl other) {
+            minecart.train().link(other, true);
         }
     }
 
@@ -90,8 +90,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     @Override
     protected boolean tryLink(final AbstractCartImpl<?, ?> first, final AbstractCartImpl<?, ?> second, final boolean force) {
         if (first instanceof MinecartImpl firstImpl && second instanceof MinecartImpl secondImpl) {
-            firstImpl.train().link(secondImpl);
-            return true;
+            return firstImpl.train().link(secondImpl, false);
         }
         return false;
     }

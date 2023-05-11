@@ -1,6 +1,5 @@
 package io.github.stuff_stuffs.train_lib.impl.common;
 
-import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import io.github.stuff_stuffs.train_lib.api.common.cart.RailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
@@ -13,6 +12,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
 
 public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
     private static final double BUFFER_SPACE = 0.625;
@@ -38,21 +39,21 @@ public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
     }
 
     @Override
-    protected Either<MoveInfo<BlockPos>, Pair<BlockPos, RailProvider.NextRailInfo<MinecartRail>>> next(final BlockPos pos, final Direction exitDirection, final double time, final boolean forwards) {
+    protected Optional<RailProvider.NextRailInfo<MinecartRail>> next(final BlockPos pos, final Direction exitDirection, final double time, final boolean forwards) {
         final MinecartRail rail = currentRail();
         if ((forwards && rail.exitPosition().equals(pos)) || (!forwards && rail.entrancePosition().equals(pos))) {
-            return Either.left(new MoveInfo<>(time, null));
+            return Optional.empty();
         }
         final BlockPos blockPos = forwards ? rail.exitPosition() : rail.entrancePosition();
         final MinecartRailProvider provider = (MinecartRailProvider) tryGetProvider(blockPos);
         if (provider == null) {
-            return Either.left(new MoveInfo<>(time, null));
+            return Optional.empty();
         }
         final RailProvider.NextRailInfo<MinecartRail> railInfo = provider.next(this, rail, exitDirection);
         if (railInfo == null) {
-            return Either.left(new MoveInfo<>(time, null));
+            return Optional.empty();
         }
-        return Either.right(Pair.of(blockPos, railInfo));
+        return Optional.of(railInfo);
     }
 
     @Override
@@ -77,5 +78,10 @@ public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
             provider = TrainLibApi.MINECART_RAIL_BLOCK_API.find(world, pos.down(), null);
         }
         return provider;
+    }
+
+    @Override
+    public BlockPos currentPosition(final MinecartRail currentRail) {
+        return currentRail.railPosition();
     }
 }

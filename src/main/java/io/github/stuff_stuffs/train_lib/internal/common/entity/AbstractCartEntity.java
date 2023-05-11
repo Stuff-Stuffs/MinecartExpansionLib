@@ -182,17 +182,19 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 }
             }
         }
-        if (world.getTime() % 32 == 0 && !world.isClient) {
+        final long offsetTime = world.getTime() + cart.randomOffset();
+        final boolean speedUpdate = offsetTime % 32 == 0;
+        final boolean trainUpdate = offsetTime % 128 == 0;
+        if (!world.isClient && speedUpdate | trainUpdate) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
-                SPEED_POS_UPDATE.send(connection, this);
-            }
-        }
-        if (world.getTime() % 128 == 0 && !world.isClient) {
-            for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
-                if (TrainTrackingUtil.shouldSend(this, player)) {
-                    final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
-                    TRAIN_UPDATE.send(connection, this);
+                if (speedUpdate) {
+                    SPEED_POS_UPDATE.send(connection, this);
+                }
+                if (trainUpdate) {
+                    if (TrainTrackingUtil.shouldSend(this, player)) {
+                        TRAIN_UPDATE.send(connection, this);
+                    }
                 }
             }
         }
@@ -267,7 +269,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             final AbstractCartImpl<?, ?> extract = extract(entity);
             if (extract != null) {
                 world.spawnEntity(entity);
-                setAttachment(extract);
+                attach(extract);
             }
         }
     }
@@ -449,7 +451,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract void linkAll(List<Entity> holders);
 
-    protected abstract void setAttachment(AbstractCartImpl<?, ?> attached);
+    protected abstract void attach(AbstractCartImpl<?, ?> toAttach);
 
     public abstract AbstractCartImpl<?, ?> cart();
 
