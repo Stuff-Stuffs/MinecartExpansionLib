@@ -193,14 +193,18 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         return holder;
     }
 
+    public boolean forwards() {
+        checkDestroyed();
+        if (train.speed == 0.0) {
+            return !inverted;
+        }
+        return train.speed * (inverted ? -1 : 1) >= 0;
+    }
+
     @Override
     public double speed() {
         checkDestroyed();
-        double speed = train.speed;
-        if (MathUtil.approxEquals(speed, 0)) {
-            speed = Math.copySign(MathUtil.EPS, speed);
-        }
-        return speed * (inverted ? -1 : 1);
+        return train.speed * (inverted ? -1 : 1);
     }
 
     @Override

@@ -60,7 +60,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         while (first.prev != null) {
             first = first.prev;
         }
-        return first.forwards ^ !(front.speed() >= 0) ? SwapResult.SWAP : SwapResult.OK;
+        return first.forwards ^ !front.forwards() ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);
@@ -83,7 +83,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
             first = first.prev;
         }
         final double distance = realDistance(end, to) * (first.forwards ? 1 : -1);
-        final double optDist = distance - optimalDistance * (end.forwards ^ to.speed() >= 0 ? -1 : 1) * (first.forwards ? 1 : -1);
+        final double optDist = distance - optimalDistance * (end.forwards ^ to.forwards() ? -1 : 1) * (first.forwards ? 1 : -1);
         return Optional.of(new Result(distance, optDist));
     }
 
@@ -100,7 +100,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
     protected @Nullable Node<T> search(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final World world, final P firstPos, final boolean reverse) {
         final T rail = from.currentRail();
         final Handle<P> handle = new Handle<>(firstPos, rail.id());
-        final boolean forwards = reverse ^ from.speed() >= 0;
+        final boolean forwards = reverse ^ from.forwards();
         final Node<T> current = new Node<>(rail, forwards, from.progress(), forwards ? rail.length() - from.progress() : from.progress(), 0, null);
         final Map<Handle<P>, Node<T>> nodes = new Object2ReferenceOpenHashMap<>();
         boolean first = true;
