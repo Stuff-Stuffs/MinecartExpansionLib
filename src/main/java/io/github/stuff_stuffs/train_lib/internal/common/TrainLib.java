@@ -1,6 +1,7 @@
 package io.github.stuff_stuffs.train_lib.internal.common;
 
 import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.CartTypes;
 import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
@@ -31,6 +32,7 @@ public class TrainLib implements ModInitializer {
         TrainLibEntities.init();
         CargoType.init();
         TrainLibItems.init();
+        CartTypes.init();
         TrainLibApi.MINECART_RAIL_BLOCK_API.registerFallback((world, pos, state, blockEntity, context) -> {
             if (state.getBlock() instanceof AbstractRailBlock railBlock) {
                 final Property<RailShape> property = railBlock.getShapeProperty();

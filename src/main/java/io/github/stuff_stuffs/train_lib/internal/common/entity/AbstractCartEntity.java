@@ -11,7 +11,7 @@ import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.entity.PreviousInteractionAwareEntity;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
-import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
@@ -77,14 +77,14 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         final double progress = buffer.readFloat();
         final double speed = buffer.readFloat();
         int flags = buffer.readInt();
-        final AbstractCartImpl<?, ?> cart = obj.cart();
+        final AbstractCart<?, ?> cart = obj.cart();
         cart.position(new Vec3d(x, y, z));
         obj.setPos(x, y, z);
         cart.progress(progress);
         obj.applyFlags(flags, obj.cart());
         cart.speed(speed);
     }, (obj, buffer, ctx) -> {
-        final AbstractCartImpl<?, ?> cart = obj.cart();
+        final AbstractCart<?, ?> cart = obj.cart();
         buffer.writeFloat((float) cart.position().getX());
         buffer.writeFloat((float) cart.position().getY());
         buffer.writeFloat((float) cart.position().getZ());
@@ -98,7 +98,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         Entity actor = obj.world.getEntityById(buffer.readInt());
         if (actor instanceof ServerPlayerEntity player) {
             if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
-                AbstractCartImpl<?, ?> cart = obj.extract(other);
+                AbstractCart<?, ?> cart = obj.extract(other);
                 if (cart != null && !obj.cart().isDestroyed() && !cart.isDestroyed()) {
                     if (obj.tryLink(obj.cart(), cart, true)) {
                         if (player.interactionManager.getGameMode().isSurvivalLike()) {
@@ -128,9 +128,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         }
         obj.linkAll(holders);
     }, (obj, buffer, ctx) -> {
-        final List<? extends AbstractCartImpl<?, ?>> cars = obj.cart().cars();
+        final List<? extends AbstractCart<?, ?>> cars = obj.cart().cars();
         buffer.writeVarInt(cars.size());
-        for (AbstractCartImpl<?, ?> car : cars) {
+        for (AbstractCart<?, ?> car : cars) {
             buffer.writeInt(car.holder().getId());
         }
     }).toClientOnly();
@@ -151,7 +151,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         if (damageWobble > 0.0F) {
             dataTracker.set(DAMAGE_WOBBLE_STRENGTH, Math.max(damageWobble - 1, 0));
         }
-        final AbstractCartImpl<?, ?> cart = cart();
+        final AbstractCart<?, ?> cart = cart();
         wheelAngle = wheelAngle + (float) (cart.speed() * 9 / Math.PI);
         cart.tick();
         if (cart.onRail()) {
@@ -170,7 +170,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                         boxes.add(dimensions.getBoxAt(positions.get(i)));
                     }
                 }
-                final List<Entity> connected = cart.cars().stream().map(AbstractCartImpl::holder).filter(Objects::nonNull).toList();
+                final List<Entity> connected = cart.cars().stream().map(AbstractCart::holder).filter(Objects::nonNull).toList();
                 final double speed = Math.abs(cart.speed()) + 0.9;
                 final double massContribution = cart.mass();
                 final float damage = (float) (speed * speed * massContribution);
@@ -183,7 +183,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             }
         }
         final long offsetTime = world.getTime() + cart.randomOffset();
-        final boolean speedUpdate = offsetTime % 32 == 0;
+        final boolean speedUpdate = offsetTime % 8 == 0;
         final boolean trainUpdate = offsetTime % 128 == 0;
         if (!world.isClient && speedUpdate | trainUpdate) {
             for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
@@ -266,7 +266,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         }
         if (nbt.contains(ATTACHED_KEY, NbtElement.COMPOUND_TYPE)) {
             final Entity entity = EntityType.loadEntityWithPassengers(nbt.getCompound(ATTACHED_KEY), world, Function.identity());
-            final AbstractCartImpl<?, ?> extract = extract(entity);
+            final AbstractCart<?, ?> extract = extract(entity);
             if (extract != null) {
                 world.spawnEntity(entity);
                 attach(extract);
@@ -276,7 +276,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     protected void writeCustomDataToNbt(final NbtCompound nbt) {
-        final AbstractCartImpl<?, ?> attachment = cart().attachment();
+        final AbstractCart<?, ?> attachment = cart().attachment();
         if (attachment != null) {
             final Entity holder = attachment.holder();
             if (holder != null) {
@@ -323,18 +323,18 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public void pushAwayFrom(final Entity entity) {
-        final AbstractCartImpl<?, ?> cart = cart();
-        final List<? extends AbstractCartImpl<?, ?>> cars = cart.cars();
+        final AbstractCart<?, ?> cart = cart();
+        final List<? extends AbstractCart<?, ?>> cars = cart.cars();
         if (cars.stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
             if (cart.onRail()) {
                 double massAhead = 0;
                 double massBehind = 0;
-                AbstractCartImpl<?, ?> ahead = cart.attached();
+                AbstractCart<?, ?> ahead = cart.attached();
                 while (ahead != null) {
                     massAhead += ahead.mass();
                     ahead = ahead.attached();
                 }
-                AbstractCartImpl<?, ?> behind = cart.attachment();
+                AbstractCart<?, ?> behind = cart.attachment();
                 while (behind != null) {
                     massBehind += behind.mass();
                     behind = behind.attachment();
@@ -451,15 +451,15 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract void linkAll(List<Entity> holders);
 
-    protected abstract void attach(AbstractCartImpl<?, ?> toAttach);
+    protected abstract void attach(AbstractCart<?, ?> toAttach);
 
-    public abstract AbstractCartImpl<?, ?> cart();
+    public abstract AbstractCart<?, ?> cart();
 
-    protected abstract @Nullable AbstractCartImpl<?, ?> extract(Entity entity);
+    protected abstract @Nullable AbstractCart<?, ?> extract(Entity entity);
 
-    protected abstract int writeFlags(final AbstractCartImpl<?, ?> cart);
+    protected abstract int writeFlags(final AbstractCart<?, ?> cart);
 
-    protected abstract void applyFlags(final int flags, final AbstractCartImpl<?, ?> cart);
+    protected abstract void applyFlags(final int flags, final AbstractCart<?, ?> cart);
 
-    protected abstract boolean tryLink(final AbstractCartImpl<?, ?> first, final AbstractCartImpl<?, ?> second, final boolean force);
+    protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force);
 }

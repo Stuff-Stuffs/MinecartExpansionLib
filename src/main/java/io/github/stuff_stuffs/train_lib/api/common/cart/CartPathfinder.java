@@ -1,7 +1,6 @@
-package io.github.stuff_stuffs.train_lib.impl.common;
+package io.github.stuff_stuffs.train_lib.api.common.cart;
 
 import com.mojang.datafixers.util.Pair;
-import io.github.stuff_stuffs.train_lib.api.common.cart.*;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
@@ -40,7 +39,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         recursionLimit = limit;
     }
 
-    public SwapResult swap(final AbstractCartImpl<T, P> front, final AbstractCartImpl<T, P> back, final World world) {
+    public SwapResult swap(final AbstractCart<T, P> front, final AbstractCart<T, P> back, final World world) {
         if (!front.onRail() || !back.onRail()) {
             return SwapResult.BROKEN;
         }
@@ -67,7 +66,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
 
     protected abstract @Nullable Pair<P, RailProvider<T>> next(T rail, boolean forwards, World world);
 
-    public Optional<Result> find(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final double optimalDistance, final World world) {
+    public Optional<Result> find(final AbstractCart<T, P> from, final AbstractCart<T, P> to, final double optimalDistance, final World world) {
         if (!from.onRail() || !to.onRail()) {
             return Optional.empty();
         }
@@ -97,7 +96,7 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         return d + Math.abs(to.progress() - node.progressOnEnter);
     }
 
-    protected @Nullable Node<T> search(final AbstractCartImpl<T, P> from, final AbstractCartImpl<T, P> to, final World world, final P firstPos, final boolean reverse) {
+    protected @Nullable Node<T> search(final AbstractCart<T, P> from, final AbstractCart<T, P> to, final World world, final P firstPos, final boolean reverse) {
         final T rail = from.currentRail();
         final Handle<P> handle = new Handle<>(firstPos, rail.id());
         final boolean forwards = reverse ^ from.forwards();

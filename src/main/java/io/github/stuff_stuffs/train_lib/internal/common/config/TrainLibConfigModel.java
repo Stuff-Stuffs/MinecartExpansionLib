@@ -24,4 +24,7 @@ public class TrainLibConfigModel {
     @Sync(Option.SyncMode.OVERRIDE_CLIENT)
     @RangeConstraint(min = 1, max = 16)
     public int maxPathfindingLimit = 10;
+    @Sync(Option.SyncMode.NONE)
+    @RangeConstraint(min = 0.0, max = 1.0)
+    public double maxMinecartVolume = 0.5;
 }

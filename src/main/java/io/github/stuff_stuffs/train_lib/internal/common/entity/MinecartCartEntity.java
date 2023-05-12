@@ -4,7 +4,7 @@ import alexiil.mc.lib.net.impl.ActiveMinecraftConnection;
 import alexiil.mc.lib.net.impl.CoreMinecraftNetUtil;
 import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
-import io.github.stuff_stuffs.train_lib.impl.common.AbstractCartImpl;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.impl.common.MinecartImpl;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
@@ -55,19 +55,19 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void attach(final AbstractCartImpl<?, ?> toAttach) {
+    protected void attach(final AbstractCart<?, ?> toAttach) {
         if (toAttach instanceof MinecartImpl other) {
             minecart.train().link(other, true);
         }
     }
 
     @Override
-    public AbstractCartImpl<?, ?> cart() {
+    public AbstractCart<?, ?> cart() {
         return minecart;
     }
 
     @Override
-    protected @Nullable AbstractCartImpl<?, ?> extract(final Entity entity) {
+    protected @Nullable AbstractCart<?, ?> extract(final Entity entity) {
         if (entity instanceof MinecartHolder holder) {
             return holder.minecart();
         }
@@ -75,7 +75,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected int writeFlags(final AbstractCartImpl<?, ?> cart) {
+    protected int writeFlags(final AbstractCart<?, ?> cart) {
         int i = 0;
         if (minecart.inverted()) {
             i |= 1;
@@ -84,12 +84,12 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void applyFlags(final int flags, final AbstractCartImpl<?, ?> cart) {
+    protected void applyFlags(final int flags, final AbstractCart<?, ?> cart) {
         cart.inverted((flags & 1) == 1);
     }
 
     @Override
-    protected boolean tryLink(final AbstractCartImpl<?, ?> first, final AbstractCartImpl<?, ?> second, final boolean force) {
+    protected boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force) {
         if (first instanceof MinecartImpl firstImpl && second instanceof MinecartImpl secondImpl) {
             return firstImpl.train().link(secondImpl, false);
         }
@@ -97,7 +97,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     protected Cart.Tracker createTracker() {
-        return new AbstractCartImpl.Tracker() {
+        return new AbstractCart.Tracker() {
             @Override
             public void onMove(final Vec3d position, final Vec3d tangent, final Vec3d up, final double time) {
                 setPosition(position);

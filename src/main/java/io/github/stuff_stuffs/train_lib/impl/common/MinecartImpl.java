@@ -1,8 +1,6 @@
 package io.github.stuff_stuffs.train_lib.impl.common;
 
-import com.mojang.datafixers.util.Pair;
-import io.github.stuff_stuffs.train_lib.api.common.cart.RailProvider;
-import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
+import io.github.stuff_stuffs.train_lib.api.common.cart.*;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
@@ -15,12 +13,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
-public class MinecartImpl extends AbstractCartImpl<MinecartRail, BlockPos> {
+public class MinecartImpl extends AbstractCart<MinecartRail, BlockPos> {
     private static final double BUFFER_SPACE = 0.625;
     private static final double EMPTY_CART_MASS = 1;
 
     public <T extends Entity & MinecartHolder> MinecartImpl(final World world, final Tracker tracker, final OffRailHandler offRailHandler, final T holder) {
-        super(world, tracker, offRailHandler, holder, CartPathfinder.MINECART_PATHFINDER);
+        super(world, tracker, offRailHandler, holder, CartTypes.MINECART_CART_TYPE);
     }
 
     @Override

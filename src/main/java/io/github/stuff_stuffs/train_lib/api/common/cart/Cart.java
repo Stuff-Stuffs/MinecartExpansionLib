@@ -10,7 +10,7 @@ public interface Cart extends CartView {
 
     void progress(double progress);
 
-    void cargo(Cargo cargo);
+    boolean cargo(@Nullable Cargo cargo);
 
     void addSpeed(double speed);
 
