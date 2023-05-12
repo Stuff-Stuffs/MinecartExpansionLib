@@ -2,9 +2,9 @@ package io.github.stuff_stuffs.train_lib.internal.common.entity;
 
 import alexiil.mc.lib.net.impl.ActiveMinecraftConnection;
 import alexiil.mc.lib.net.impl.CoreMinecraftNetUtil;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
-import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.impl.common.MinecartImpl;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.item.TrainLibItems;
@@ -30,6 +30,16 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     public MinecartCartEntity(final EntityType<?> type, final World world) {
         super(type, world);
         minecart = new MinecartImpl(world, createTracker(), createHandler(), this);
+    }
+
+    @Override
+    protected void applyUpdate(int flags, float progress, Vec3d pos, float speed) {
+        minecart.position(pos);
+        minecart.progress(progress);
+        setPosition(pos);
+        minecart.train().speed(speed);
+        applyFlags(flags);
+        resetPosition();
     }
 
     protected BlockPos centeredBlockPos() {
@@ -83,9 +93,8 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
         return i;
     }
 
-    @Override
-    protected void applyFlags(final int flags, final AbstractCart<?, ?> cart) {
-        cart.inverted((flags & 1) == 1);
+    private void applyFlags(final int flags) {
+        minecart.inverted((flags & 1) == 1);
     }
 
     @Override

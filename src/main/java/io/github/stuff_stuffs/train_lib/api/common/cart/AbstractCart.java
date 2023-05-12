@@ -38,7 +38,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     private Vec3d velocity = Vec3d.ZERO;
     private @Nullable T lastRail = null;
     private @Nullable T currentRail = null;
-    private boolean onRail = false;
     private @Nullable Cargo cargo;
     private boolean inverted = false;
     private Train<T, P> train;
@@ -156,7 +155,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
 
     public boolean onRail() {
         checkDestroyed();
-        return onRail;
+        return currentRail!=null;
     }
 
     public T currentRail() {
@@ -227,7 +226,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             currentRail.onExit(this);
         }
         currentRail = null;
-        onRail = false;
         final RailProvider<T> provider = tryGetProvider(findOrDefault(position, world));
         if (provider == null) {
             return;
@@ -240,7 +238,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         progress = snap.progress();
         this.position = currentRail.position(progress);
         emitter.setPos(position);
-        onRail = true;
         currentRail.onEnter(this);
     }
 
@@ -356,7 +353,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         if (!world.isClient) {
             throw new IllegalStateException();
         }
-        train.remove(this);
         final Train<T, P> train = new Train<>(carts, this.train.speed);
         for (final AbstractCart<T, P> cart : carts) {
             cart.train = train;
@@ -567,6 +563,10 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             return speed;
         }
 
+        public void speed(double speed) {
+            this.speed = speed;
+        }
+
         public void addSpeed(final AbstractCart<T, P> cart, double speed) {
             speed = this.speed + (cart.inverted ? -1 : 1) * speed * cart.mass() / mass;
             this.speed = Math.copySign(Math.min(Math.abs(speed), TrainLib.CONFIG.maxSpeed()), speed);
@@ -651,7 +651,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                     final AbstractCart<T, P> following = i == 0 ? null : carts.get(i - 1);
                     cart.tracker.reset();
                     move(cart, following);
-                    if (following != null && !cart.onRail && cart.offRailHandler.shouldDisconnect(cart, following)) {
+                    if (following != null && !cart.onRail() && cart.offRailHandler.shouldDisconnect(cart, following)) {
                         offRailBreaks.add(i - 1);
                     }
                 }
@@ -661,14 +661,15 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                     final AbstractCart<T, P> following = i == size - 1 ? null : carts.get(i + 1);
                     cart.tracker.reset();
                     move(cart, following);
-                    if (following != null && !cart.onRail && cart.offRailHandler.shouldDisconnect(cart, following)) {
+                    if (following != null && !cart.onRail() && cart.offRailHandler.shouldDisconnect(cart, following)) {
                         offRailBreaks.add(i);
                     }
                 }
             }
             for (final AbstractCart<T, P> cart : carts) {
                 cart.holder.setPosition(cart.position);
-                if (cart.onRail) {
+                cart.holder.resetPosition();
+                if (cart.onRail()) {
                     cart.holder.setVelocity(cart.velocity);
                 }
             }

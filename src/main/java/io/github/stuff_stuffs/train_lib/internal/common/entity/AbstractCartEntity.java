@@ -5,13 +5,13 @@ import alexiil.mc.lib.net.ParentNetIdSingle;
 import alexiil.mc.lib.net.impl.ActiveMinecraftConnection;
 import alexiil.mc.lib.net.impl.CoreMinecraftNetUtil;
 import alexiil.mc.lib.net.impl.McNetworkStack;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.Rail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.entity.PreviousInteractionAwareEntity;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
-import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
@@ -70,28 +70,22 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             buffer.writeBoolean(false);
         }
     }).toClientOnly();
-    public static final NetIdDataK<AbstractCartEntity> SPEED_POS_UPDATE = NET_PARENT.idData("speed_pos", Float.BYTES * 3 + Float.BYTES + Float.BYTES + Integer.BYTES).setReadWrite((obj, buffer, ctx) -> {
-        final double x = buffer.readFloat();
-        final double y = buffer.readFloat();
-        final double z = buffer.readFloat();
-        final double progress = buffer.readFloat();
-        final double speed = buffer.readFloat();
-        int flags = buffer.readInt();
-        final AbstractCart<?, ?> cart = obj.cart();
-        cart.position(new Vec3d(x, y, z));
-        obj.setPos(x, y, z);
-        cart.progress(progress);
-        obj.applyFlags(flags, obj.cart());
-        cart.speed(speed);
-    }, (obj, buffer, ctx) -> {
-        final AbstractCart<?, ?> cart = obj.cart();
-        buffer.writeFloat((float) cart.position().getX());
-        buffer.writeFloat((float) cart.position().getY());
-        buffer.writeFloat((float) cart.position().getZ());
-        buffer.writeFloat((float) cart.progress());
-        buffer.writeFloat((float) cart.speed());
-        buffer.writeInt(obj.writeFlags(cart));
-    }).withTinySize().toClientOnly();
+    public static final NetIdDataK<AbstractCartEntity> SPEED_POS_UPDATE = NET_PARENT.idData("speed_pos").setReceiver((obj, buffer, ctx) -> {
+        float speed = buffer.readFloat();
+        int count = buffer.readVarInt();
+        for (int i = 0; i < count; i++) {
+            final int id = buffer.readInt();
+            int flags = buffer.readInt();
+            float progress = buffer.readFloat();
+            float x = buffer.readFloat();
+            float y = buffer.readFloat();
+            float z = buffer.readFloat();
+            final Entity entity = obj.world.getEntityById(id);
+            if(entity instanceof AbstractCartEntity cart) {
+                cart.applyUpdate(flags, progress, new Vec3d(x,y,z), speed);
+            }
+        }
+    }).toClientOnly();
     public static final NetIdDataK<AbstractCartEntity> TRY_LINK = NET_PARENT.idData("try_link", Integer.BYTES * 2).setReceiver((obj, buffer, ctx) -> {
         final int otherId = buffer.readInt();
         final Entity other = obj.world.getEntityById(otherId);
@@ -122,8 +116,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             Entity entity = obj.world.getEntityById(iterator.nextInt());
             if (entity != null) {
                 holders.add(entity);
-            } else {
-                return;
             }
         }
         obj.linkAll(holders);
@@ -137,7 +129,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     private final MinecartMovementTracker movementTracker;
     public float wheelAngle;
     public static final TrackedData<Float> DAMAGE_WOBBLE_STRENGTH = DataTracker.registerData(AbstractCartEntity.class, TrackedDataHandlerRegistry.FLOAT);
-
 
     public AbstractCartEntity(final EntityType<?> type, final World world) {
         super(type, world);
@@ -182,20 +173,45 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 }
             }
         }
-        final long offsetTime = world.getTime() + cart.randomOffset();
-        final boolean speedUpdate = offsetTime % 8 == 0;
-        final boolean trainUpdate = offsetTime % 128 == 0;
-        if (!world.isClient && speedUpdate | trainUpdate) {
-            for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+        if(cart.attached()==null && !world.isClient) {
+            final long offsetTime = world.getTime() + cart.randomOffset();
+            final boolean speedUpdate = offsetTime % 20 == 0;
+            final boolean trainUpdate = offsetTime % 200 == 0;
+            if(speedUpdate) {
+                sendSyncPacket();
+            }
+            if(trainUpdate) {
+                sendTrainSyncPacket();
+            }
+        }
+    }
+
+    private void sendSyncPacket() {
+        for (ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+            if(TrainTrackingUtil.shouldSend(this, player)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
-                if (speedUpdate) {
-                    SPEED_POS_UPDATE.send(connection, this);
-                }
-                if (trainUpdate) {
-                    if (TrainTrackingUtil.shouldSend(this, player)) {
-                        TRAIN_UPDATE.send(connection, this);
+                SPEED_POS_UPDATE.send(connection, this, (obj, buffer, ctx) -> {
+                    final List<? extends AbstractCart<?, ?>> cars = cart().cars();
+                    buffer.writeFloat((float)cars.get(0).train().speed());
+                    buffer.writeVarInt(cars.size());
+                    for (AbstractCart<?, ?> car : cars) {
+                        buffer.writeInt(car.holder().getId());
+                        buffer.writeInt(writeFlags(car));
+                        buffer.writeFloat((float)car.progress());
+                        buffer.writeFloat((float)car.holder().getPos().x);
+                        buffer.writeFloat((float)car.holder().getPos().y);
+                        buffer.writeFloat((float)car.holder().getPos().z);
                     }
-                }
+                });
+            }
+        }
+    }
+
+    private void sendTrainSyncPacket() {
+        for (ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+            if (TrainTrackingUtil.shouldSend(this, player)) {
+                final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
+                TRAIN_UPDATE.send(connection, this);
             }
         }
     }
@@ -410,7 +426,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void onStartedTrackingBy(final ServerPlayerEntity player) {
         final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
         CARGO_CHANGE.send(connection, this);
-        SPEED_POS_UPDATE.send(connection, this);
         if (TrainTrackingUtil.shouldSend(this, player)) {
             TRAIN_UPDATE.send(connection, this);
         }
@@ -447,6 +462,8 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         return true;
     }
 
+    protected abstract void applyUpdate(int flags, float progress, Vec3d pos, float speed);
+
     protected abstract Item item();
 
     protected abstract void linkAll(List<Entity> holders);
@@ -458,8 +475,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     protected abstract @Nullable AbstractCart<?, ?> extract(Entity entity);
 
     protected abstract int writeFlags(final AbstractCart<?, ?> cart);
-
-    protected abstract void applyFlags(final int flags, final AbstractCart<?, ?> cart);
 
     protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force);
 }
