@@ -68,6 +68,10 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
     @Override
     public abstract double bufferSpace();
 
+    public abstract BlockPos currentPosition(T currentRail);
+
+    protected abstract @Nullable RailProvider<T> tryGetProvider(P pos);
+
     public int randomOffset() {
         return train.carts.get(0).holder.getId();
     }
@@ -204,8 +208,6 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
         checkDestroyed();
         return progress;
     }
-
-    protected abstract @Nullable RailProvider<T> tryGetProvider(P pos);
 
     @Override
     public void position(final Vec3d position) {
@@ -344,8 +346,6 @@ public abstract class AbstractCartImpl<T extends Rail<T>, P> implements Cart {
             cart.train = train;
         }
     }
-
-    public abstract BlockPos currentPosition(T currentRail);
 
     public record MoveInfo<P>(double time, @Nullable P pos) {
     }
