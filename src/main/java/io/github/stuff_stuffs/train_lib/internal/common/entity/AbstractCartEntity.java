@@ -15,6 +15,7 @@ import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
+import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfigModel;
 import io.github.stuff_stuffs.train_lib.internal.common.util.TrainTrackingUtil;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -81,8 +82,8 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             float y = buffer.readFloat();
             float z = buffer.readFloat();
             final Entity entity = obj.world.getEntityById(id);
-            if(entity instanceof AbstractCartEntity cart) {
-                cart.applyUpdate(flags, progress, new Vec3d(x,y,z), speed);
+            if (entity instanceof AbstractCartEntity cart) {
+                cart.applyUpdate(flags, progress, new Vec3d(x, y, z), speed);
             }
         }
     }).toClientOnly();
@@ -148,7 +149,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         if (cart.onRail()) {
             if (!world.isClient) {
                 final List<Vec3d> positions = movementTracker.positions();
-                final List<Box> boxes = new ArrayList<>();
+                final List<MovementData> movementData = new ArrayList<>();
                 final EntityDimensions dimensions = getDimensions(EntityPose.STANDING);
                 final int size = positions.size();
                 for (int i = 0; i < size; i++) {
@@ -156,51 +157,62 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                         final Vec3d position = positions.get(i);
                         final Vec3d next = positions.get(i + 1);
                         final Vec3d delta = next.subtract(position);
-                        boxes.add(dimensions.getBoxAt(position).stretch(delta.x, delta.y, delta.z));
+                        movementData.add(new MovementData(dimensions.getBoxAt(position).stretch(delta.x, delta.y, delta.z), delta));
                     } else {
-                        boxes.add(dimensions.getBoxAt(positions.get(i)));
+                        movementData.add(new MovementData(dimensions.getBoxAt(positions.get(i)), Vec3d.ZERO));
                     }
                 }
                 final List<Entity> connected = cart.cars().stream().map(AbstractCart::holder).filter(Objects::nonNull).toList();
                 final double speed = Math.abs(cart.speed()) + 0.9;
                 final double massContribution = cart.mass();
                 final float damage = (float) (speed * speed * massContribution);
-                for (final Box box : boxes) {
-                    final List<Entity> entities = world.getOtherEntities(this, box, i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
+                for (final MovementData data : movementData) {
+                    final List<Entity> entities = world.getOtherEntities(this, data.box(), i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
                     for (final Entity entity : entities) {
-                        entity.damage(TrainLibDamageSources.createTrain(this), damage);
+                        final TrainLibConfigModel.EntityCollisionOption option = TrainLib.optionOf(entity);
+                        switch (option) {
+                            case DEFAULT, IGNORE -> {
+                            }
+                            case DAMAGE -> entity.damage(TrainLibDamageSources.createTrain(this), damage);
+                            case PUSH -> entity.addVelocity(data.velocity());
+                        }
                     }
                 }
             }
         }
-        if(cart.attached()==null && !world.isClient) {
+        if (cart.attached() == null && !world.isClient) {
             final long offsetTime = world.getTime() + cart.randomOffset();
             final boolean speedUpdate = offsetTime % 20 == 0;
-            final boolean trainUpdate = offsetTime % 200 == 0;
-            if(speedUpdate) {
+            final boolean trainUpdate = offsetTime % 127 == 0;
+            if (speedUpdate) {
                 sendSyncPacket();
             }
-            if(trainUpdate) {
+            if (trainUpdate) {
                 sendTrainSyncPacket();
             }
         }
     }
 
+    private record MovementData(Box box, Vec3d velocity) {
+
+    }
+
     private void sendSyncPacket() {
-        for (ServerPlayerEntity player : PlayerLookup.tracking(this)) {
-            if(TrainTrackingUtil.shouldSend(this, player)) {
+        for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+            if (TrainTrackingUtil.shouldSend(this, player)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 SPEED_POS_UPDATE.send(connection, this, (obj, buffer, ctx) -> {
                     final List<? extends AbstractCart<?, ?>> cars = cart().cars();
-                    buffer.writeFloat((float)cars.get(0).train().speed());
+                    buffer.writeFloat((float) cars.get(0).train().speed());
                     buffer.writeVarInt(cars.size());
-                    for (AbstractCart<?, ?> car : cars) {
+                    for (final AbstractCart<?, ?> car : cars) {
                         buffer.writeInt(car.holder().getId());
                         buffer.writeInt(writeFlags(car));
-                        buffer.writeFloat((float)car.progress());
-                        buffer.writeFloat((float)car.holder().getPos().x);
-                        buffer.writeFloat((float)car.holder().getPos().y);
-                        buffer.writeFloat((float)car.holder().getPos().z);
+                        buffer.writeFloat((float) car.progress());
+                        final Vec3d pos = car.holder().getPos();
+                        buffer.writeFloat((float) pos.x);
+                        buffer.writeFloat((float) pos.y);
+                        buffer.writeFloat((float) pos.z);
                     }
                 });
             }
@@ -208,7 +220,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     }
 
     private void sendTrainSyncPacket() {
-        for (ServerPlayerEntity player : PlayerLookup.tracking(this)) {
+        for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
             if (TrainTrackingUtil.shouldSend(this, player)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
                 TRAIN_UPDATE.send(connection, this);
@@ -291,6 +303,11 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     }
 
     @Override
+    protected boolean canStartRiding(final Entity entity) {
+        return false;
+    }
+
+    @Override
     protected void writeCustomDataToNbt(final NbtCompound nbt) {
         final AbstractCart<?, ?> attachment = cart().attachment();
         if (attachment != null) {
@@ -343,18 +360,8 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         final List<? extends AbstractCart<?, ?>> cars = cart.cars();
         if (cars.stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
             if (cart.onRail()) {
-                double massAhead = 0;
-                double massBehind = 0;
-                AbstractCart<?, ?> ahead = cart.attached();
-                while (ahead != null) {
-                    massAhead += ahead.mass();
-                    ahead = ahead.attached();
-                }
-                AbstractCart<?, ?> behind = cart.attachment();
-                while (behind != null) {
-                    massBehind += behind.mass();
-                    behind = behind.attachment();
-                }
+                final double massAhead = cart.massAhead();
+                final double massBehind = cart.massBehind();
                 if (MathUtil.approxEquals(massAhead, massBehind)) {
                     final Vec3d push = cart.position().subtract(entity.getPos());
                     final Vec3d velocity = cart.velocity();
@@ -400,10 +407,17 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             if (world.isClient) {
                 return ActionResult.SUCCESS;
             } else {
-                if (player.startRiding(this)) {
-                    cart().cargo(new EntityCargo(player.getUuid()));
+                final boolean cargoCheck = cart().cargo(new EntityCargo(player.getUuid()));
+                final boolean ridingCheck = player.startRiding(this);
+                if (cargoCheck && ridingCheck) {
                     return ActionResult.CONSUME;
                 } else {
+                    if (cargoCheck) {
+                        cart().cargo(null);
+                    }
+                    if (ridingCheck) {
+                        player.stopRiding();
+                    }
                     return ActionResult.PASS;
                 }
             }
@@ -428,6 +442,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         CARGO_CHANGE.send(connection, this);
         if (TrainTrackingUtil.shouldSend(this, player)) {
             TRAIN_UPDATE.send(connection, this);
+        }
+        if (cart().attached() == null) {
+            sendSyncPacket();
         }
     }
 

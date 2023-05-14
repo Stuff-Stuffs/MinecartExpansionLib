@@ -31,7 +31,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     protected final Tracker tracker;
     protected final OffRailHandler offRailHandler;
     protected final Entity holder;
-    private final CartType<T,P> type;
+    private final CartType<T, P> type;
     private final CartEventEmitter emitter;
     private double progress;
     private Vec3d position = Vec3d.ZERO;
@@ -43,7 +43,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     private Train<T, P> train;
     private boolean destroyed = false;
 
-    public AbstractCart(final World world, final Tracker tracker, final OffRailHandler offRailHandler, final Entity holder, CartType<T,P> type) {
+    public AbstractCart(final World world, final Tracker tracker, final OffRailHandler offRailHandler, final Entity holder, final CartType<T, P> type) {
         this.world = world;
         this.tracker = tracker;
         this.offRailHandler = offRailHandler;
@@ -72,7 +72,8 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         return train.carts.get(0).holder.getId();
     }
 
-    public CartType<T,P> type() {
+    @Override
+    public CartType<T, P> type() {
         return type;
     }
 
@@ -155,7 +156,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
 
     public boolean onRail() {
         checkDestroyed();
-        return currentRail!=null;
+        return currentRail != null;
     }
 
     public T currentRail() {
@@ -178,7 +179,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     @Override
     public boolean cargo(final @Nullable Cargo cargo) {
         checkDestroyed();
-        if(cargo!=null && !cargo.type().check(type)) {
+        if (cargo != null && !cargo.type().check(type)) {
             return false;
         }
         this.cargo = cargo;
@@ -316,8 +317,8 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
             emitter.setPos(position);
             currentRail.onExit(this);
-            if(cargo!=null) {
-                cargo.onRail(rail, this, m-overflow);
+            if (cargo != null) {
+                cargo.onRail(rail, this, m - overflow);
             }
             currentRail = railInfo.rail();
             currentRail.onEnter(this);
@@ -339,7 +340,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         final Vec3d velocity = rail.tangent(progress).multiply(speed());
         this.velocity = velocity;
         holder.setVelocity(velocity);
-        if(cargo!=null) {
+        if (cargo != null) {
             cargo.onRail(rail, this, m);
         }
         return new MoveInfo<>(timeRemaining - m, pos);
@@ -353,6 +354,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         if (!world.isClient) {
             throw new IllegalStateException();
         }
+        for (final AbstractCart<T, P> cart : carts) {
+            cart.train.remove(cart);
+        }
         final Train<T, P> train = new Train<>(carts, this.train.speed);
         for (final AbstractCart<T, P> cart : carts) {
             cart.train = train;
@@ -363,7 +367,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     }
 
     public static final class Train<T extends Rail<T>, P> {
-        private final CartType<T,P> type;
+        private final CartType<T, P> type;
         private final List<AbstractCart<T, P>> carts = new ArrayList<>();
         private double mass = 1.0;
         private double speed = 0.0;
@@ -376,8 +380,8 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
 
         public Train(final List<? extends AbstractCart<T, P>> carts, final double speed) {
             this.type = carts.get(0).type();
-            for (AbstractCart<T, P> cart : carts) {
-                if(cart.type() != type) {
+            for (final AbstractCart<T, P> cart : carts) {
+                if (cart.type() != type) {
                     throw new IllegalArgumentException();
                 }
             }
@@ -397,7 +401,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             if (other.train == this) {
                 return true;
             }
-            if(other.type!=this.type) {
+            if (other.type != this.type) {
                 return false;
             }
             if (carts.size() + other.train.carts.size() > TrainLib.CONFIG.maxTrainSize()) {
@@ -563,7 +567,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             return speed;
         }
 
-        public void speed(double speed) {
+        public void speed(final double speed) {
             this.speed = speed;
         }
 
@@ -691,7 +695,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             if (cart.currentRail != null) {
                 cart.emitter.emit(new CartEvent.RailOccupied(cart.currentPosition(cart.currentRail), cart.currentRail.id(), cart));
             }
-            if(cart.cargo!=null) {
+            if (cart.cargo != null) {
                 cart.cargo.tick(cart);
             }
             final int recursionLimit = TrainLib.CONFIG.maxRecursion();

@@ -8,8 +8,8 @@ import net.minecraft.util.math.BlockPos;
 
 public final class CartTypes {
     public static final CartType<MinecartRail, BlockPos> MINECART_CART_TYPE = CartType.of(CartPathfinder.MINECART_PATHFINDER);
-    public static final TagKey<CartType<?,?>> ENTITY_RIDEABLE_TAG = TagKey.of(CartType.REGISTRY.getKey(), TrainLib.id("entity_rideable"));
-    public static final TagKey<CartType<?,?>> BLOCK_RIDEABLE_TAG = TagKey.of(CartType.REGISTRY.getKey(), TrainLib.id("entity_rideable"));
+    public static final TagKey<CartType<?, ?>> ENTITY_RIDEABLE_TAG = TagKey.of(CartType.REGISTRY.getKey(), TrainLib.id("entity_rideable"));
+    public static final TagKey<CartType<?, ?>> BLOCK_RIDEABLE_TAG = TagKey.of(CartType.REGISTRY.getKey(), TrainLib.id("block_rideable"));
 
 
     public static void init() {

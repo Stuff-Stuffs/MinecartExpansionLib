@@ -48,7 +48,7 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
     @Override
     public void render(final T entity, final float yaw, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
-        if(entity.cart().isDestroyed()) {
+        if (entity.cart().isDestroyed()) {
             return;
         }
         final double heightOffset = 0.39;
@@ -76,36 +76,45 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age) * entity.getDataTracker().get(MinecartCartEntity.DAMAGE_WOBBLE_STRENGTH) / 10.0F));
         matrices.translate(0, heightOffset * scale, 0);
         matrices.scale((float) scale, (float) scale, (float) scale);
-        matrices.push();
-        matrices.scale(-1, -1, 1);
-        model.setAngles(null, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
-        final VertexConsumer vertexConsumer = vertexConsumers.getBuffer(model.getLayer(getTexture(entity)));
-        model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, 1.0F, 1.0F, 1.0F, 1.0F);
+        final boolean skip;
+        if (entity.cart().cargo() == null) {
+            skip = false;
+        } else {
+            final Cargo cargo = entity.cart().cargo();
+            skip = shouldSkipRendering(cargo, cargo.type());
+        }
+        if (!skip) {
+            matrices.push();
+            matrices.scale(-1, -1, 1);
+            model.setAngles(null, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
+            final VertexConsumer vertexConsumer = vertexConsumers.getBuffer(model.getLayer(getTexture(entity)));
+            model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, 1.0F, 1.0F, 1.0F, 1.0F);
 
-        wheelPart.setAngles(0, 0, entity.wheelAngle);
-        matrices.pop();
+            wheelPart.setAngles(0, 0, entity.wheelAngle);
+            matrices.pop();
 
-        matrices.push();
-        matrices.translate(4.5 / 16.0, -4.5 / 16.0, 8 / 16.0);
-        final VertexConsumer wheelBuffer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(WHEEL_TEXTURE));
-        wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
-        matrices.pop();
+            matrices.push();
+            matrices.translate(4.5 / 16.0, -4.5 / 16.0, 8 / 16.0);
+            final VertexConsumer wheelBuffer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(WHEEL_TEXTURE));
+            wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
+            matrices.pop();
 
-        matrices.push();
-        matrices.translate(4.5 / 16.0, -4.5 / 16.0, -9 / 16.0);
-        wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
-        matrices.pop();
+            matrices.push();
+            matrices.translate(4.5 / 16.0, -4.5 / 16.0, -9 / 16.0);
+            wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
+            matrices.pop();
 
-        matrices.push();
-        matrices.translate(-4.5 / 16.0, -4.5 / 16.0, 8 / 16.0);
-        wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
-        matrices.pop();
+            matrices.push();
+            matrices.translate(-4.5 / 16.0, -4.5 / 16.0, 8 / 16.0);
+            wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
+            matrices.pop();
 
-        matrices.push();
-        matrices.translate(-4.5 / 16.0, -4.5 / 16.0, -9 / 16.0);
-        wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
-        matrices.pop();
+            matrices.push();
+            matrices.translate(-4.5 / 16.0, -4.5 / 16.0, -9 / 16.0);
+            wheelPart.render(matrices, wheelBuffer, light, OverlayTexture.DEFAULT_UV, 1, 1, 1, 1);
+            matrices.pop();
 
+        }
         final Cargo cargo = entity.cart().cargo();
         if (cargo != null) {
             final CargoType<?> type = cargo.type();
@@ -115,6 +124,11 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             matrices.pop();
         }
         matrices.pop();
+    }
+
+    protected static <T extends Cargo> boolean shouldSkipRendering(final Cargo cargo, final CargoType<T> type) {
+        final CargoRenderer<? super T> renderer = CargoRenderingRegistry.getInstance().get(type);
+        return renderer != null && renderer.skipCartRendering((T) cargo);
     }
 
     protected static <T extends Cargo> void renderCargo(final CargoType<T> type, final Cargo cargo, final AbstractCartEntity entity, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {

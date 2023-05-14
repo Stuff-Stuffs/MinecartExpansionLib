@@ -7,4 +7,6 @@ import net.minecraft.client.util.math.MatrixStack;
 
 public interface CargoRenderer<T extends Cargo> {
     void renderCargo(T cargo, CartView view, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light);
+
+    boolean skipCartRendering(T cargo);
 }

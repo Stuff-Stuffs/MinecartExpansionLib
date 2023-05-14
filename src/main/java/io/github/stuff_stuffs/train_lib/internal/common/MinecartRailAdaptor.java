@@ -2,14 +2,13 @@ package io.github.stuff_stuffs.train_lib.internal.common;
 
 import io.github.stuff_stuffs.train_lib.api.common.cart.CartDataView;
 import io.github.stuff_stuffs.train_lib.api.common.cart.CartView;
-import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRail;
-import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRail;
+import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.DelegatingMinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.PoweredMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.basic.SimpleMinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
-import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfigModel;
 import net.minecraft.block.enums.RailShape;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -66,7 +65,7 @@ public final class MinecartRailAdaptor {
             }
 
             private MinecartRail fromInfo(final Info info, final BlockPos railPosition) {
-                return new PoweredMinecartRail(info.start, info.end, 0, railPosition, info.entrance, info.exit, info.entranceDirection, info.exitDirection, 3, 0.4);
+                return new PoweredMinecartRail(info.start, info.end, 0, railPosition, info.entrance, info.exit, info.entranceDirection, info.exitDirection, TrainLib.CONFIG.maxSpeed(), 0.4);
             }
         };
     }

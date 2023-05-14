@@ -33,7 +33,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void applyUpdate(int flags, float progress, Vec3d pos, float speed) {
+    protected void applyUpdate(final int flags, final float progress, final Vec3d pos, final float speed) {
         minecart.position(pos);
         minecart.progress(progress);
         setPosition(pos);
@@ -72,7 +72,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    public AbstractCart<?, ?> cart() {
+    public MinecartImpl cart() {
         return minecart;
     }
 
@@ -84,6 +84,10 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
         return null;
     }
 
+    private void applyFlags(final int flags) {
+        minecart.inverted((flags & 1) == 1);
+    }
+
     @Override
     protected int writeFlags(final AbstractCart<?, ?> cart) {
         int i = 0;
@@ -91,10 +95,6 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
             i |= 1;
         }
         return i;
-    }
-
-    private void applyFlags(final int flags) {
-        minecart.inverted((flags & 1) == 1);
     }
 
     @Override
@@ -150,7 +150,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
             public double handle(final Cart minecart, @Nullable final Cart following, final Vec3d position, final double time) {
                 //TODO partial movements
                 setPosition(position);
-                double gravity = TrainLib.CONFIG.gravity();
+                final double gravity = TrainLib.CONFIG.gravity();
                 if (following != null) {
                     Vec3d distance = following.position().subtract(getPos()).withAxis(Direction.Axis.Y, 0);
                     final double optimal = minecart.bufferSpace() + following.bufferSpace();
