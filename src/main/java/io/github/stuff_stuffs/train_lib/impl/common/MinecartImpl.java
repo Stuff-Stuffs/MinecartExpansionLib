@@ -1,9 +1,13 @@
 package io.github.stuff_stuffs.train_lib.impl.common;
 
-import io.github.stuff_stuffs.train_lib.api.common.cart.*;
+import io.github.stuff_stuffs.train_lib.api.common.TrainLibApi;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
+import io.github.stuff_stuffs.train_lib.api.common.cart.CartTypes;
+import io.github.stuff_stuffs.train_lib.api.common.cart.RailProvider;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartHolder;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
+import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -76,6 +80,19 @@ public class MinecartImpl extends AbstractCart<MinecartRail, BlockPos> {
             provider = TrainLibApi.MINECART_RAIL_BLOCK_API.find(world, pos.down(), null);
         }
         return provider;
+    }
+
+    @Override
+    protected double checkBlock(final MinecartRail currentRail, final boolean forwards) {
+        final BlockPos exit = forwards ? currentRail.exitPosition() : currentRail.entrancePosition();
+        if (exit == null) {
+            return 0.0D;
+        }
+        final BlockState exitState = world.getBlockState(exit);
+        if (exitState.isSolidBlock(world, exit)) {
+            return bufferSpace();
+        }
+        return 0;
     }
 
     @Override

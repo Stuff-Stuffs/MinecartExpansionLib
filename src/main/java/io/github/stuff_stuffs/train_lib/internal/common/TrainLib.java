@@ -1,8 +1,8 @@
 package io.github.stuff_stuffs.train_lib.internal.common;
 
+import io.github.stuff_stuffs.train_lib.api.common.TrainLibApi;
 import io.github.stuff_stuffs.train_lib.api.common.cart.Cart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.CartTypes;
-import io.github.stuff_stuffs.train_lib.api.common.cart.TrainLibApi;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.EntityCargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRail;

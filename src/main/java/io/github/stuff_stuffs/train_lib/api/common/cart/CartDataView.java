@@ -1,6 +1,7 @@
 package io.github.stuff_stuffs.train_lib.api.common.cart;
 
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
+import io.github.stuff_stuffs.train_lib.api.common.event.CartEventEmitter;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
@@ -25,4 +26,8 @@ public interface CartDataView {
     double bufferSpace();
 
     Entity holder();
+
+    CartEventEmitter eventEmitter();
+
+    Vec3d forward();
 }

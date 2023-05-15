@@ -1,4 +1,4 @@
-package io.github.stuff_stuffs.train_lib.api.common.cart;
+package io.github.stuff_stuffs.train_lib.api.common;
 
 import io.github.stuff_stuffs.train_lib.api.common.cart.mine.MinecartRailProvider;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;

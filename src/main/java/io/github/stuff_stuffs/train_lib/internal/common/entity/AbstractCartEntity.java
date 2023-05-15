@@ -179,12 +179,14 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                     }
                 }
             }
+        } else {
+            cart.speed(getVelocity().length());
         }
         if (cart.attached() == null && !world.isClient) {
             final long offsetTime = world.getTime() + cart.randomOffset();
             final boolean speedUpdate = offsetTime % 20 == 0;
             final boolean trainUpdate = offsetTime % 127 == 0;
-            if (speedUpdate) {
+            if (speedUpdate || trainUpdate) {
                 sendSyncPacket();
             }
             if (trainUpdate) {
@@ -278,7 +280,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void setVelocity(final Vec3d velocity) {
         super.setVelocity(velocity);
         if (!cart().onRail()) {
-            cart().speed(velocity.length() * 0.01);
+            cart().speed(velocity.length());
         }
     }
 
@@ -364,12 +366,12 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 final double massBehind = cart.massBehind();
                 if (MathUtil.approxEquals(massAhead, massBehind)) {
                     final Vec3d push = cart.position().subtract(entity.getPos());
-                    final Vec3d velocity = cart.velocity();
-                    final double dot = push.dotProduct(velocity);
-                    if (MathUtil.approxEquals(dot, 0) || dot > 0) {
-                        cart.addSpeed(Math.copySign(0.05, cart.speed()));
+                    final Vec3d forward = cart.forward();
+                    final double dot = push.dotProduct(forward);
+                    if (dot >= 0) {
+                        cart.addSpeed(Math.copySign(0.05, cart.forwards() ? 1 : -1));
                     } else {
-                        cart.addSpeed(Math.copySign(0.05, -cart.speed()));
+                        cart.addSpeed(Math.copySign(0.05, cart.forwards() ? -1 : 1));
                     }
                 } else if (massAhead > massBehind) {
                     cart.addSpeed(Math.copySign(0.05, cart.speed()));
@@ -407,6 +409,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             if (world.isClient) {
                 return ActionResult.SUCCESS;
             } else {
+                if (cart().cargo() != null) {
+                    return ActionResult.PASS;
+                }
                 final boolean cargoCheck = cart().cargo(new EntityCargo(player.getUuid()));
                 final boolean ridingCheck = player.startRiding(this);
                 if (cargoCheck && ridingCheck) {

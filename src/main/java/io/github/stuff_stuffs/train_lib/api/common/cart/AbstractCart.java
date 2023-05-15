@@ -36,6 +36,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     private double progress;
     private Vec3d position = Vec3d.ZERO;
     private Vec3d velocity = Vec3d.ZERO;
+    private Vec3d forward = Vec3d.ZERO;
     private @Nullable T lastRail = null;
     private @Nullable T currentRail = null;
     private @Nullable Cargo cargo;
@@ -61,12 +62,11 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
 
     protected abstract double emptyCartMass();
 
-    @Override
-    public abstract double bufferSpace();
-
     public abstract BlockPos currentPosition(T currentRail);
 
     protected abstract @Nullable RailProvider<T> tryGetProvider(P pos);
+
+    protected abstract double checkBlock(T currentRail, boolean forwards);
 
     public int randomOffset() {
         return train.carts.get(0).holder.getId();
@@ -188,6 +188,11 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     }
 
     @Override
+    public Vec3d forward() {
+        return forward;
+    }
+
+    @Override
     public void addSpeed(final double speed) {
         checkDestroyed();
         train.addSpeed(this, speed);
@@ -196,6 +201,11 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     @Override
     public Entity holder() {
         return holder;
+    }
+
+    @Override
+    public CartEventEmitter eventEmitter() {
+        return emitter;
     }
 
     public boolean forwards() {
@@ -235,9 +245,14 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         if (snap == null) {
             return;
         }
+        if (snap.forwards() ^ forwards()) {
+            inverted = !inverted;
+        }
         currentRail = snap.rail();
         progress = snap.progress();
         this.position = currentRail.position(progress);
+        velocity = currentRail.tangent(progress).multiply(speed());
+        this.forward = currentRail.tangent(progress).multiply(forwards() ? 1 : -1);
         emitter.setPos(position);
         currentRail.onEnter(this);
     }
@@ -294,14 +309,15 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         final double speed = train.speed * (inverted ? -1 : 1) + d * 0.1;
         final double maxMove = speed * m;
         final double oldProgress = progress;
-        if ((progress + maxMove > length) || (progress + maxMove < 0)) {
+        final double target;
+        if (speed >= 0) {
+            target = length - checkBlock(rail, true);
+        } else {
+            target = checkBlock(rail, false);
+        }
+        if ((speed > 0 && progress + maxMove > target) || (speed < 0 && progress + maxMove < target)) {
             final boolean forwards = speed >= 0;
-            final double overflow;
-            if (forwards) {
-                overflow = (progress + maxMove - length) / speed;
-            } else {
-                overflow = (progress + maxMove) / speed;
-            }
+            final double overflow = Math.min((progress + maxMove - target) / speed, 1);
             lastRail = rail;
             MinecartRailProvider.NextRailInfo<T> railInfo = provider.next(this, lastRail, null);
             if (railInfo == null) {
@@ -326,7 +342,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                 inverted = !inverted;
             }
             progress = railInfo.progress();
-            final Vec3d velocity = rail.tangent(progress).multiply(speed());
+            final Vec3d tangent = rail.tangent(progress);
+            final Vec3d velocity = tangent.multiply(speed());
+            this.forward = tangent.multiply(forwards() ? 1 : -1);
             this.velocity = velocity;
             holder.setVelocity(velocity);
             return new MoveInfo<>(Math.max(overflow, MathUtil.EPS), nextPos);
@@ -337,7 +355,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         position = rail.position(Math.min(Math.max(progress, MathUtil.EPS), length - MathUtil.EPS));
         emitter.setPos(position);
         tracker.onMove(position, rail.tangent(progress), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
-        final Vec3d velocity = rail.tangent(progress).multiply(speed());
+        final Vec3d tangent = rail.tangent(progress);
+        final Vec3d velocity = tangent.multiply(speed());
+        this.forward = tangent.multiply(forwards() ? 1 : -1);
         this.velocity = velocity;
         holder.setVelocity(velocity);
         if (cargo != null) {
