@@ -81,7 +81,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             float x = buffer.readFloat();
             float y = buffer.readFloat();
             float z = buffer.readFloat();
-            final Entity entity = obj.world.getEntityById(id);
+            final Entity entity = obj.getWorld().getEntityById(id);
             if (entity instanceof AbstractCartEntity cart) {
                 cart.applyUpdate(flags, progress, new Vec3d(x, y, z), speed);
             }
@@ -89,8 +89,8 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     }).toClientOnly();
     public static final NetIdDataK<AbstractCartEntity> TRY_LINK = NET_PARENT.idData("try_link", Integer.BYTES * 2).setReceiver((obj, buffer, ctx) -> {
         final int otherId = buffer.readInt();
-        final Entity other = obj.world.getEntityById(otherId);
-        Entity actor = obj.world.getEntityById(buffer.readInt());
+        final Entity other = obj.getWorld().getEntityById(otherId);
+        Entity actor = obj.getWorld().getEntityById(buffer.readInt());
         if (actor instanceof ServerPlayerEntity player) {
             if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
                 AbstractCart<?, ?> cart = obj.extract(other);
@@ -99,7 +99,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                         if (player.interactionManager.getGameMode().isSurvivalLike()) {
                             player.getStackInHand(Hand.MAIN_HAND).decrement(1);
                         }
-                        obj.world.playSoundFromEntity(null, obj, SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.PLAYERS, 1.0F, 1.0F);
+                        obj.getWorld().playSoundFromEntity(null, obj, SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.PLAYERS, 1.0F, 1.0F);
                     }
                 }
             }
@@ -114,7 +114,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         List<Entity> holders = new ArrayList<>(carCount);
         final IntListIterator iterator = carIds.iterator();
         while (iterator.hasNext()) {
-            Entity entity = obj.world.getEntityById(iterator.nextInt());
+            Entity entity = obj.getWorld().getEntityById(iterator.nextInt());
             if (entity != null) {
                 holders.add(entity);
             }
@@ -147,7 +147,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         wheelAngle = wheelAngle + (float) (cart.speed() * 9 / Math.PI);
         cart.tick();
         if (cart.onRail()) {
-            if (!world.isClient) {
+            if (!getWorld().isClient) {
                 final List<Vec3d> positions = movementTracker.positions();
                 final List<MovementData> movementData = new ArrayList<>();
                 final EntityDimensions dimensions = getDimensions(EntityPose.STANDING);
@@ -167,7 +167,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 final double massContribution = cart.mass();
                 final float damage = (float) (speed * speed * massContribution);
                 for (final MovementData data : movementData) {
-                    final List<Entity> entities = world.getOtherEntities(this, data.box(), i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
+                    final List<Entity> entities = getWorld().getOtherEntities(this, data.box(), i -> !connected.contains(i) && !connected.contains(i.getRootVehicle()) && i instanceof LivingEntity);
                     for (final Entity entity : entities) {
                         final TrainLibConfigModel.EntityCollisionOption option = TrainLib.optionOf(entity);
                         switch (option) {
@@ -182,8 +182,8 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         } else {
             cart.speed(getVelocity().length());
         }
-        if (cart.attached() == null && !world.isClient) {
-            final long offsetTime = world.getTime() + cart.randomOffset();
+        if (cart.attached() == null && !getWorld().isClient) {
+            final long offsetTime = getWorld().getTime() + cart.randomOffset();
             final boolean speedUpdate = offsetTime % 20 == 0;
             final boolean trainUpdate = offsetTime % 127 == 0;
             if (speedUpdate || trainUpdate) {
@@ -199,7 +199,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     }
 
-    private void sendSyncPacket() {
+    protected void sendSyncPacket() {
         for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
             if (TrainTrackingUtil.shouldSend(this, player)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
@@ -232,7 +232,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public boolean damage(final DamageSource source, final float amount) {
-        if (world.isClient || isRemoved()) {
+        if (getWorld().isClient || isRemoved()) {
             return true;
         } else if (isInvulnerableTo(source)) {
             return false;
@@ -256,7 +256,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     public void dropItems(final DamageSource damageSource) {
         kill();
-        if (world.getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
+        if (getWorld().getGameRules().getBoolean(GameRules.DO_ENTITY_DROPS)) {
             final ItemStack itemStack = new ItemStack(item());
             if (hasCustomName()) {
                 itemStack.setCustomName(getCustomName());
@@ -295,10 +295,10 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             cart().load(nbt.getCompound("cart"));
         }
         if (nbt.contains(ATTACHED_KEY, NbtElement.COMPOUND_TYPE)) {
-            final Entity entity = EntityType.loadEntityWithPassengers(nbt.getCompound(ATTACHED_KEY), world, Function.identity());
+            final Entity entity = EntityType.loadEntityWithPassengers(nbt.getCompound(ATTACHED_KEY), getWorld(), Function.identity());
             final AbstractCart<?, ?> extract = extract(entity);
             if (extract != null) {
-                world.spawnEntity(entity);
+                getWorld().spawnEntity(entity);
                 attach(extract);
             }
         }
@@ -403,14 +403,11 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     @Override
     public ActionResult interact(final PlayerEntity player, final Hand hand) {
         if (hand == Hand.MAIN_HAND && player.getStackInHand(Hand.MAIN_HAND).isEmpty()) {
-            if (hasPassengers() || cart().cargo() != null) {
-                return ActionResult.PASS;
-            }
-            if (world.isClient) {
-                return ActionResult.SUCCESS;
+            if (getWorld().isClient) {
+                return ActionResult.success(cart().cargo() == null);
             } else {
                 if (cart().cargo() != null) {
-                    return ActionResult.PASS;
+                    return ActionResult.CONSUME;
                 }
                 final boolean cargoCheck = cart().cargo(new EntityCargo(player.getUuid()));
                 final boolean ridingCheck = player.startRiding(this);
@@ -445,18 +442,30 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public void onStartedTrackingBy(final ServerPlayerEntity player) {
         final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
         CARGO_CHANGE.send(connection, this);
-        if (TrainTrackingUtil.shouldSend(this, player)) {
-            TRAIN_UPDATE.send(connection, this);
-        }
+        boolean sent = false;
         if (cart().attached() == null) {
             sendSyncPacket();
+            sent = true;
+        }
+        final boolean sendTrainUpdate = TrainTrackingUtil.shouldSend(this, player);
+        if (!sent && sendTrainUpdate) {
+            AbstractCart<?, ?> cart = cart();
+            while (cart.attached() != null) {
+                cart = cart.attached();
+            }
+            if (cart.holder() instanceof AbstractCartEntity entity) {
+                entity.sendSyncPacket();
+            }
+        }
+        if (sendTrainUpdate) {
+            TRAIN_UPDATE.send(connection, this);
         }
     }
 
     @Override
-    public void updatePassengerPosition(final Entity passenger) {
+    public void updatePassengerPosition(final Entity passenger, final Entity.PositionUpdater positionUpdater) {
         final Vec3d position = fastPosition(1.0F).add(0, passenger.getHeightOffset(), 0);
-        passenger.setPosition(position);
+        positionUpdater.accept(passenger, position.x, position.y, position.z);
     }
 
     public MinecartMovementTracker movementTracker() {
@@ -465,7 +474,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public ActionResult previousInteractionAwareInteract(final PlayerEntity player, final Hand hand, final Entity previousInteraction) {
-        if (world.isClient) {
+        if (getWorld().isClient) {
             if (player == MinecraftClient.getInstance().player && player.getStackInHand(hand).isOf(Items.CHAIN)) {
                 if (previousInteraction instanceof MinecartHolder) {
                     TRY_LINK.send(CoreMinecraftNetUtil.getConnection(player), this, (obj, buffer, ctx) -> {

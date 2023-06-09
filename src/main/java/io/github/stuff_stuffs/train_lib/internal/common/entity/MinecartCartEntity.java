@@ -120,8 +120,8 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
 
             @Override
             public void onCargoChange() {
-                if (!world.isClient()) {
-                    for (final ActiveMinecraftConnection connection : CoreMinecraftNetUtil.getPlayersWatching(world, centeredBlockPos())) {
+                if (!getWorld().isClient()) {
+                    for (final ActiveMinecraftConnection connection : CoreMinecraftNetUtil.getPlayersWatching(getWorld(), centeredBlockPos())) {
                         CARGO_CHANGE.send(connection, MinecartCartEntity.this);
                     }
                 }
@@ -129,7 +129,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
 
             @Override
             public void trainChange() {
-                if (world.isClient) {
+                if (getWorld().isClient) {
                     return;
                 }
                 if (minecart.attached() != null) {
@@ -164,9 +164,9 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
                     minecart.position(getPos());
                     return 0;
                 }
-                final Vec3d add = getVelocity().multiply(0.96).add(0, -gravity, 0);
-                setVelocity(add);
-                move(MovementType.SELF, add.multiply(time));
+                final Vec3d velocity = getVelocity().multiply(0.96).add(0, -gravity, 0);
+                move(MovementType.SELF, velocity.multiply(time));
+                setVelocity(getPos().subtract(position));
                 minecart.position(getPos());
                 return 0;
             }
