@@ -299,12 +299,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         double d = 0;
         if (following != null) {
             final double bufferSpace = bufferSpace() + following.bufferSpace();
-            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed) * m, world);
+            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed), world);
             if (result.isPresent()) {
                 d = result.get().optimalDistance();
-                if (!world.isClient) {
-                    System.out.println(d);
-                }
             }
         }
         final double speed = train.speed * (inverted ? -1 : 1) + d * 0.1;
@@ -631,7 +628,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                 return IntSet.of();
             }
             final IntSet breaks = new IntOpenHashSet();
-            if (speed > 0) {
+            if (speed >= 0) {
                 for (int i = 0; i < size; i++) {
                     if (i == 0) {
                         final AbstractCart<T, P> start = carts.get(i);
@@ -671,14 +668,14 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             if (Math.abs(speed) < 0.00001) {
                 speed = 0;
             }
-            carts.removeIf(AbstractCart::isDestroyed);
-            IntSet breaks = resetForwards();
             for (final AbstractCart<T, P> cart : carts) {
                 cart.position(cart.holder.getPos());
             }
+            carts.removeIf(AbstractCart::isDestroyed);
+            final IntSet breaks = resetForwards();
             final IntSet offRailBreaks = new IntOpenHashSet();
             final int size = carts.size();
-            if (speed > 0) {
+            if (speed >= 0) {
                 for (int i = 0; i < size; i++) {
                     final AbstractCart<T, P> cart = carts.get(i);
                     final AbstractCart<T, P> following = i == 0 ? null : carts.get(i - 1);
@@ -707,15 +704,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                 }
             }
             if (!carts.get(0).world.isClient && !breaks.isEmpty() || !offRailBreaks.isEmpty()) {
-                if (!breaks.isEmpty()) {
-                    //check that it hasn't been fixed by movement
-                    breaks = resetForwards();
-                }
-                if (!breaks.isEmpty() || !offRailBreaks.isEmpty()) {
-                    final IntSortedSet sorted = new IntRBTreeSet(breaks);
-                    sorted.addAll(offRailBreaks);
-                    split(this, sorted);
-                }
+                final IntSortedSet sorted = new IntRBTreeSet(breaks);
+                sorted.addAll(offRailBreaks);
+                split(this, sorted);
             }
         }
 

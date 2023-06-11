@@ -51,15 +51,16 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
             return SwapResult.BROKEN;
         }
         if (search == null) {
-            return SwapResult.SWAP;
-        }
-        if (other == null) {
             return SwapResult.OK;
         }
-        if (realDistance(search, following) < realDistance(other, following)) {
+        if (other == null) {
             return SwapResult.SWAP;
         }
-        return SwapResult.OK;
+        Node<?> first = (realDistance(search, following) <= realDistance(other, following)) ? search : other;
+        while (first.prev != null) {
+            first = first.prev;
+        }
+        return first.forwards ^ start.forwards() ? SwapResult.OK : SwapResult.SWAP;
     }
 
     public SwapResult swap(final AbstractCart<T, P> following, final AbstractCart<T, P> followed, final World world) {
@@ -73,16 +74,16 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
             return SwapResult.BROKEN;
         }
         if (search == null) {
-            return SwapResult.OK;
+            return SwapResult.SWAP;
         }
         if (other == null) {
-            return SwapResult.SWAP;
+            return SwapResult.OK;
         }
         Node<?> first = (realDistance(search, followed) <= realDistance(other, followed)) ? search : other;
         while (first.prev != null) {
             first = first.prev;
         }
-        return first.forwards ^ following.forwards() ? SwapResult.SWAP : SwapResult.OK;
+        return first.forwards ^ !following.forwards() ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);
@@ -104,8 +105,8 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         while (first.prev != null) {
             first = first.prev;
         }
-        final double distance = realDistance(end, to) - optimalDistance * (end.forwards ^ to.forwards() ? -1 : 1);
-        final double optDist = distance * (from.forwards() ? 1 : -1);
+        final double distance = realDistance(end, to) * (first.forwards ? 1 : -1);
+        final double optDist = distance - optimalDistance * (end.forwards ^ to.forwards() ? -1 : 1) * (first.forwards ? 1 : -1);
         return Optional.of(new Result(distance, optDist));
     }
 
