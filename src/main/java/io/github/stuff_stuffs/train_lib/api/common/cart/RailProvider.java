@@ -17,7 +17,7 @@ public interface RailProvider<T extends Rail<T>> {
 
     IntSet intersecting(int id);
 
-    @Nullable RailProvider.RailReflectionInfo<T> nextReflect(T current, @Nullable Direction approachDirection);
+    @Nullable RailReflectionInfo<T> nextReflect(T current, @Nullable Direction approachDirection);
 
     @Nullable RailReflectionInfo<T> snapReflect(@Nullable Direction approachDirection);
 

@@ -88,7 +88,7 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             matrices.scale(-1, -1, 1);
             model.setAngles(null, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
             final VertexConsumer vertexConsumer = vertexConsumers.getBuffer(model.getLayer(getTexture(entity)));
-            model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, 1.0F, 1.0F, 1.0F, 1.0F);
+            model.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV, entity.cart().attached() == null ? 0.0F : 1.0F, 1.0F, 1.0F, 1.0F);
 
             wheelPart.setAngles(0, 0, entity.wheelAngle);
             matrices.pop();

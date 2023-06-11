@@ -37,7 +37,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     private double progress;
     private @Nullable T lastRail = null;
     private @Nullable T currentRail = null;
-    private @Nullable Cargo cargo;
+    private @Nullable Cargo cargo = null;
     private boolean inverted = false;
     private Train<T, P> train;
     private boolean destroyed = false;
@@ -294,14 +294,17 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             return null;
         }
         currentRail = rail;
-        final double length = rail.length();
-        final double m = train.applyVelocityModifier(this, rail, timeRemaining);
+        final double length = currentRail.length();
+        final double m = train.applyVelocityModifier(this, currentRail, timeRemaining);
         double d = 0;
         if (following != null) {
             final double bufferSpace = bufferSpace() + following.bufferSpace();
-            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed) * timeRemaining, world);
+            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed) * m, world);
             if (result.isPresent()) {
                 d = result.get().optimalDistance();
+                if (!world.isClient) {
+                    System.out.println(d);
+                }
             }
         }
         final double speed = train.speed * (inverted ? -1 : 1) + d * 0.1;
@@ -309,17 +312,17 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         final double oldProgress = progress;
         final double target;
         if (speed >= 0) {
-            target = length - checkBlock(rail, true);
+            target = length - checkBlock(currentRail, true);
         } else {
-            target = checkBlock(rail, false);
+            target = checkBlock(currentRail, false);
         }
         if ((speed > 0 && progress + maxMove > target) || (speed < 0 && progress + maxMove < target)) {
             final boolean forwards = speed >= 0;
             final double overflow = Math.min((progress + maxMove - target) / speed, 1);
-            lastRail = rail;
+            lastRail = currentRail;
             MinecartRailProvider.NextRailInfo<T> railInfo = provider.next(this, lastRail, null);
             if (railInfo == null) {
-                final Optional<RailProvider.NextRailInfo<T>> next = next(pos, forwards ? rail.exitDirection() : rail.entranceDirection(), overflow, forwards);
+                final Optional<RailProvider.NextRailInfo<T>> next = next(pos, forwards ? currentRail.exitDirection() : currentRail.entranceDirection(), overflow, forwards);
                 if (next.isEmpty()) {
                     this.progress = Math.min(Math.max(this.progress + maxMove, 0), length);
                     transientData.update(this, currentRail);
@@ -329,14 +332,14 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             }
             final P nextPos = positionFromRail(railInfo.rail());
             progress = Math.min(Math.max(this.progress + maxMove, MathUtil.EPS), length - MathUtil.EPS);
-            transientData.updateOnRail(this, rail, oldProgress, progress, m - overflow);
+            transientData.updateOnRail(this, currentRail, oldProgress, progress, m - overflow);
             currentRail.onExit(this);
             if (cargo != null) {
                 cargo.onRail(rail, this, m - overflow);
             }
             currentRail = railInfo.rail();
             currentRail.onEnter(this);
-            if (speed() >= 0 ^ railInfo.forwards()) {
+            if (forwards() ^ railInfo.forwards()) {
                 inverted = !inverted;
             }
             this.progress = railInfo.progress();
@@ -347,7 +350,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         transientData.updateOnRail(this, currentRail, oldProgress, progress, m);
         tracker.onMove(position(), forward(), MinecartRail.DEFAULT_UP, 1 - (timeRemaining - m));
         if (cargo != null) {
-            cargo.onRail(rail, this, m);
+            cargo.onRail(currentRail, this, m);
         }
         return new MoveInfo<>(timeRemaining - m, pos);
     }
@@ -606,18 +609,18 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             this.speed = (cart.inverted ? -1 : 1) * speed;
         }
 
-        private boolean resetForwardsEnd(final AbstractCart<T, P> end, final AbstractCart<T, P> previous) {
-            final CartPathfinder.SwapResult swap = end.type.pathfinder().swap(end, previous, end.world);
+        private boolean resetForwardsEnd(final AbstractCart<T, P> start, final AbstractCart<T, P> following) {
+            final CartPathfinder.SwapResult swap = start.type.pathfinder().swapStart(start, following, start.world);
             if (swap == CartPathfinder.SwapResult.SWAP) {
-                end.inverted = !end.inverted;
+                start.inverted = !start.inverted;
             }
             return swap != CartPathfinder.SwapResult.BROKEN;
         }
 
-        private boolean resetForwards(final AbstractCart<T, P> front, final AbstractCart<T, P> back) {
-            final CartPathfinder.SwapResult swap = front.type.pathfinder().swap(back, front, front.world);
-            if (swap == CartPathfinder.SwapResult.OK) {
-                back.inverted = !back.inverted;
+        private boolean resetForwards(final AbstractCart<T, P> following, final AbstractCart<T, P> followed) {
+            final CartPathfinder.SwapResult swap = following.type.pathfinder().swap(following, followed, following.world);
+            if (swap == CartPathfinder.SwapResult.SWAP) {
+                following.inverted = !following.inverted;
             }
             return swap != CartPathfinder.SwapResult.BROKEN;
         }
@@ -628,18 +631,18 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                 return IntSet.of();
             }
             final IntSet breaks = new IntOpenHashSet();
-            if (speed >= 0) {
+            if (speed > 0) {
                 for (int i = 0; i < size; i++) {
                     if (i == 0) {
-                        final AbstractCart<T, P> prev = carts.get(i);
-                        final AbstractCart<T, P> current = carts.get(i + 1);
-                        if (!resetForwardsEnd(prev, current) && current.onRail() && prev.onRail()) {
+                        final AbstractCart<T, P> start = carts.get(i);
+                        final AbstractCart<T, P> following = carts.get(i + 1);
+                        if (!resetForwardsEnd(start, following) && following.onRail() && start.onRail()) {
                             breaks.add(i);
                         }
                     } else {
                         final AbstractCart<T, P> prev = carts.get(i - 1);
                         final AbstractCart<T, P> current = carts.get(i);
-                        if (!resetForwards(prev, current) && current.onRail() && prev.onRail()) {
+                        if (!resetForwards(current, prev) && current.onRail() && prev.onRail()) {
                             breaks.add(i - 1);
                         }
                     }
@@ -647,15 +650,15 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             } else {
                 for (int i = size - 1; i >= 0; i--) {
                     if (i == size - 1) {
-                        final AbstractCart<T, P> prev = carts.get(i);
-                        final AbstractCart<T, P> current = carts.get(i - 1);
-                        if (!resetForwardsEnd(prev, current) && current.onRail() && prev.onRail()) {
+                        final AbstractCart<T, P> start = carts.get(i);
+                        final AbstractCart<T, P> following = carts.get(i - 1);
+                        if (!resetForwardsEnd(start, following) && following.onRail() && start.onRail()) {
                             breaks.add(i - 1);
                         }
                     } else {
                         final AbstractCart<T, P> prev = carts.get(i + 1);
                         final AbstractCart<T, P> current = carts.get(i);
-                        if (!resetForwards(prev, current) && current.onRail() && prev.onRail()) {
+                        if (!resetForwards(current, prev) && current.onRail() && prev.onRail()) {
                             breaks.add(i);
                         }
                     }
@@ -665,7 +668,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         }
 
         public void tick() {
-            if (Math.abs(speed) < Float.MIN_VALUE) {
+            if (Math.abs(speed) < 0.00001) {
                 speed = 0;
             }
             carts.removeIf(AbstractCart::isDestroyed);
@@ -675,7 +678,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             }
             final IntSet offRailBreaks = new IntOpenHashSet();
             final int size = carts.size();
-            if (speed >= 0) {
+            if (speed > 0) {
                 for (int i = 0; i < size; i++) {
                     final AbstractCart<T, P> cart = carts.get(i);
                     final AbstractCart<T, P> following = i == 0 ? null : carts.get(i - 1);

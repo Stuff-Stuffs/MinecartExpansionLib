@@ -20,7 +20,7 @@ public abstract class MixinAxisTransformation {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void clear(final String string, final int i, final int xMapping, final int yMapping, final int zMapping, final CallbackInfo ci) {
-        matrix.scale(0);
+        matrix.zero();
         matrix.set(map(0), 0, 1.0F);
         matrix.set(map(1), 1, 1.0F);
         matrix.set(map(2), 2, 1.0F);

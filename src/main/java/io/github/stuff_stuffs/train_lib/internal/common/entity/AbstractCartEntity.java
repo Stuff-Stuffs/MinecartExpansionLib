@@ -187,7 +187,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             final boolean speedUpdate = offsetTime % 20 == 0;
             final boolean trainUpdate = offsetTime % 127 == 0;
             if (speedUpdate || trainUpdate) {
-                sendSyncPacket();
+                sendSyncPackets();
             }
             if (trainUpdate) {
                 sendTrainSyncPacket();
@@ -199,26 +199,30 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     }
 
-    protected void sendSyncPacket() {
+    protected void sendSyncPackets() {
         for (final ServerPlayerEntity player : PlayerLookup.tracking(this)) {
             if (TrainTrackingUtil.shouldSend(this, player)) {
                 final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(player);
-                SPEED_POS_UPDATE.send(connection, this, (obj, buffer, ctx) -> {
-                    final List<? extends AbstractCart<?, ?>> cars = cart().cars();
-                    buffer.writeFloat((float) cars.get(0).train().speed());
-                    buffer.writeVarInt(cars.size());
-                    for (final AbstractCart<?, ?> car : cars) {
-                        buffer.writeInt(car.holder().getId());
-                        buffer.writeInt(writeFlags(car));
-                        buffer.writeFloat((float) car.progress());
-                        final Vec3d pos = car.holder().getPos();
-                        buffer.writeFloat((float) pos.x);
-                        buffer.writeFloat((float) pos.y);
-                        buffer.writeFloat((float) pos.z);
-                    }
-                });
+                sendSyncPacket(connection);
             }
         }
+    }
+
+    protected void sendSyncPacket(final ActiveMinecraftConnection connection) {
+        SPEED_POS_UPDATE.send(connection, this, (obj, buffer, ctx) -> {
+            final List<? extends AbstractCart<?, ?>> cars = cart().cars();
+            buffer.writeFloat((float) cars.get(0).train().speed());
+            buffer.writeVarInt(cars.size());
+            for (final AbstractCart<?, ?> car : cars) {
+                buffer.writeInt(car.holder().getId());
+                buffer.writeInt(writeFlags(car));
+                buffer.writeFloat((float) car.progress());
+                final Vec3d pos = car.holder().getPos();
+                buffer.writeFloat((float) pos.x);
+                buffer.writeFloat((float) pos.y);
+                buffer.writeFloat((float) pos.z);
+            }
+        });
     }
 
     private void sendTrainSyncPacket() {
@@ -378,6 +382,10 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 } else {
                     cart.addSpeed(Math.copySign(0.05, -cart.speed()));
                 }
+                if (entity instanceof ServerPlayerEntity playerEntity && TrainTrackingUtil.shouldSend(this, playerEntity)) {
+                    final ActiveMinecraftConnection connection = CoreMinecraftNetUtil.getConnection(playerEntity);
+                    sendSyncPacket(connection);
+                }
             } else {
                 super.pushAwayFrom(entity);
             }
@@ -444,7 +452,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         CARGO_CHANGE.send(connection, this);
         boolean sent = false;
         if (cart().attached() == null) {
-            sendSyncPacket();
+            sendSyncPackets();
             sent = true;
         }
         final boolean sendTrainUpdate = TrainTrackingUtil.shouldSend(this, player);
@@ -454,7 +462,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 cart = cart.attached();
             }
             if (cart.holder() instanceof AbstractCartEntity entity) {
-                entity.sendSyncPacket();
+                entity.sendSyncPackets();
             }
         }
         if (sendTrainUpdate) {

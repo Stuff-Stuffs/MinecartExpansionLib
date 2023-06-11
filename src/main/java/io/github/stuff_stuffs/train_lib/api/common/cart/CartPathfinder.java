@@ -40,13 +40,35 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         recursionLimit = limit;
     }
 
-    public SwapResult swap(final AbstractCart<T, P> front, final AbstractCart<T, P> back, final World world) {
-        if (!front.onRail() || !back.onRail()) {
+    public SwapResult swapStart(final AbstractCart<T, P> start, final AbstractCart<T, P> following, final World world) {
+        if (!start.onRail() || !following.onRail()) {
             return SwapResult.BROKEN;
         }
-        final P pos = extract(front.currentRail());
-        final Node<?> search = search(front, back, world, pos, false);
-        final Node<?> other = search(front, back, world, pos, true);
+        final P pos = extract(start.currentRail());
+        final Node<?> search = search(start, following, world, pos, false);
+        final Node<?> other = search(start, following, world, pos, true);
+        if (search == null && other == null) {
+            return SwapResult.BROKEN;
+        }
+        if (search == null) {
+            return SwapResult.SWAP;
+        }
+        if (other == null) {
+            return SwapResult.OK;
+        }
+        if (realDistance(search, following) < realDistance(other, following)) {
+            return SwapResult.SWAP;
+        }
+        return SwapResult.OK;
+    }
+
+    public SwapResult swap(final AbstractCart<T, P> following, final AbstractCart<T, P> followed, final World world) {
+        if (!following.onRail() || !followed.onRail()) {
+            return SwapResult.BROKEN;
+        }
+        final P pos = extract(following.currentRail());
+        final Node<?> search = search(following, followed, world, pos, false);
+        final Node<?> other = search(following, followed, world, pos, true);
         if (search == null && other == null) {
             return SwapResult.BROKEN;
         }
@@ -56,11 +78,11 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         if (other == null) {
             return SwapResult.SWAP;
         }
-        Node<?> first = (realDistance(search, back) < realDistance(other, back)) ? search : other;
+        Node<?> first = (realDistance(search, followed) <= realDistance(other, followed)) ? search : other;
         while (first.prev != null) {
             first = first.prev;
         }
-        return first.forwards ^ !front.forwards() ? SwapResult.SWAP : SwapResult.OK;
+        return first.forwards ^ following.forwards() ? SwapResult.SWAP : SwapResult.OK;
     }
 
     protected abstract P extract(T rail);
@@ -82,8 +104,8 @@ public abstract class CartPathfinder<T extends Rail<T>, P> {
         while (first.prev != null) {
             first = first.prev;
         }
-        final double distance = realDistance(end, to) * (first.forwards ? 1 : -1);
-        final double optDist = distance - optimalDistance * (end.forwards ^ to.forwards() ? -1 : 1) * (first.forwards ? 1 : -1);
+        final double distance = realDistance(end, to) - optimalDistance * (end.forwards ^ to.forwards() ? -1 : 1);
+        final double optDist = distance * (from.forwards() ? 1 : -1);
         return Optional.of(new Result(distance, optDist));
     }
 
