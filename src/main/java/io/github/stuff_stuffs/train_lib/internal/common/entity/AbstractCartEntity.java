@@ -53,7 +53,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 public abstract class AbstractCartEntity extends Entity implements FastMountEntity, PreviousInteractionAwareEntity {
-    private static final String ATTACHED_KEY = "attached_minecart";
+    private static final String ATTACHMENT_KEY = "attached_minecart";
     public static final ParentNetIdSingle<AbstractCartEntity> NET_PARENT = McNetworkStack.ENTITY.subType(AbstractCartEntity.class, TrainLib.MOD_ID + ":cart");
     public static final NetIdDataK<AbstractCartEntity> CARGO_CHANGE = NET_PARENT.idData("cargo_change").setReadWrite((obj, buffer, ctx) -> {
         if (buffer.readBoolean()) {
@@ -298,13 +298,16 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         if (nbt.contains("cart", NbtElement.COMPOUND_TYPE)) {
             cart().load(nbt.getCompound("cart"));
         }
-        if (nbt.contains(ATTACHED_KEY, NbtElement.COMPOUND_TYPE)) {
-            final Entity entity = EntityType.loadEntityWithPassengers(nbt.getCompound(ATTACHED_KEY), getWorld(), Function.identity());
+        if (nbt.contains(ATTACHMENT_KEY, NbtElement.COMPOUND_TYPE)) {
+            final Entity entity = EntityType.loadEntityWithPassengers(nbt.getCompound(ATTACHMENT_KEY), getWorld(), Function.identity());
             final AbstractCart<?, ?> extract = extract(entity);
             if (extract != null) {
                 getWorld().spawnEntity(entity);
                 attach(extract);
             }
+        }
+        if (nbt.contains("speed", NbtElement.DOUBLE_TYPE)) {
+            cart().train().speed(nbt.getDouble("speed"));
         }
     }
 
@@ -321,12 +324,16 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             if (holder != null) {
                 final NbtCompound sub = new NbtCompound();
                 holder.saveSelfNbt(sub);
-                nbt.put(ATTACHED_KEY, sub);
+                nbt.put(ATTACHMENT_KEY, sub);
             }
         }
         final NbtCompound cart = new NbtCompound();
         cart().save(cart);
         nbt.put("cart", cart);
+        final AbstractCart<?, ?> attached = cart().attached();
+        if (attached == null) {
+            nbt.putDouble("speed", cart().train().speed());
+        }
     }
 
     @Override
