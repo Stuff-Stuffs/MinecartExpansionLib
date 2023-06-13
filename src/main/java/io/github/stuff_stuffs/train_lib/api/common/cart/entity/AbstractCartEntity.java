@@ -1,4 +1,4 @@
-package io.github.stuff_stuffs.train_lib.internal.common.entity;
+package io.github.stuff_stuffs.train_lib.api.common.cart.entity;
 
 import alexiil.mc.lib.net.NetIdDataK;
 import alexiil.mc.lib.net.ParentNetIdSingle;
@@ -16,10 +16,13 @@ import io.github.stuff_stuffs.train_lib.internal.client.render.FastMountEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLibDamageSources;
 import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfigModel;
+import io.github.stuff_stuffs.train_lib.internal.common.entity.MinecartMovementTracker;
 import io.github.stuff_stuffs.train_lib.internal.common.util.TrainTrackingUtil;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntListIterator;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.EventFactory;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.*;
@@ -54,6 +57,11 @@ import java.util.function.Function;
 
 public abstract class AbstractCartEntity extends Entity implements FastMountEntity, PreviousInteractionAwareEntity {
     private static final String ATTACHMENT_KEY = "attached_minecart";
+    public static final Event<SyncListener> SYNC_EVENT = EventFactory.createArrayBacked(SyncListener.class, listeners -> entity -> {
+        for (SyncListener listener : listeners) {
+            listener.onSync(entity);
+        }
+    });
     public static final ParentNetIdSingle<AbstractCartEntity> NET_PARENT = McNetworkStack.ENTITY.subType(AbstractCartEntity.class, TrainLib.MOD_ID + ":cart");
     public static final NetIdDataK<AbstractCartEntity> CARGO_CHANGE = NET_PARENT.idData("cargo_change").setReadWrite((obj, buffer, ctx) -> {
         if (buffer.readBoolean()) {
@@ -83,7 +91,14 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             float z = buffer.readFloat();
             final Entity entity = obj.getWorld().getEntityById(id);
             if (entity instanceof AbstractCartEntity cart) {
-                cart.applyUpdate(flags, progress, new Vec3d(x, y, z), speed);
+                final AbstractCart<?, ?> abstractCart = cart.cart();
+                final Vec3d vec = new Vec3d(x, y, z);
+                abstractCart.position(vec);
+                abstractCart.progress(progress);
+                cart.setPosition(vec);
+                abstractCart.train().speed(speed);
+                applyFlags(abstractCart, flags);
+                cart.resetPosition();
             }
         }
     }).toClientOnly();
@@ -159,6 +174,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                         final Vec3d delta = next.subtract(position);
                         movementData.add(new MovementData(dimensions.getBoxAt(position).stretch(delta.x, delta.y, delta.z), delta));
                     } else {
+                        //fixme
                         movementData.add(new MovementData(dimensions.getBoxAt(positions.get(i)), Vec3d.ZERO));
                     }
                 }
@@ -206,6 +222,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 sendSyncPacket(connection);
             }
         }
+        SYNC_EVENT.invoker().onSync(this);
     }
 
     protected void sendSyncPacket(final ActiveMinecraftConnection connection) {
@@ -508,8 +525,6 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
         return true;
     }
 
-    protected abstract void applyUpdate(int flags, float progress, Vec3d pos, float speed);
-
     protected abstract Item item();
 
     protected abstract void linkAll(List<Entity> holders);
@@ -520,7 +535,17 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract @Nullable AbstractCart<?, ?> extract(Entity entity);
 
-    protected abstract int writeFlags(final AbstractCart<?, ?> cart);
-
     protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force);
+
+    private static void applyFlags(final AbstractCart<?, ?> cart, final int flags) {
+    }
+
+    private static int writeFlags(final AbstractCart<?, ?> cart) {
+        final int flags = 0;
+        return flags;
+    }
+
+    public interface SyncListener {
+        void onSync(AbstractCartEntity entity);
+    }
 }

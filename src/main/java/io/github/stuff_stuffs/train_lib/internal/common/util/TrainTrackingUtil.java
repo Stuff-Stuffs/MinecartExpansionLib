@@ -1,7 +1,7 @@
 package io.github.stuff_stuffs.train_lib.internal.common.util;
 
 import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
-import io.github.stuff_stuffs.train_lib.internal.common.entity.AbstractCartEntity;
+import io.github.stuff_stuffs.train_lib.api.common.cart.entity.AbstractCartEntity;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.server.network.ServerPlayerEntity;
 

@@ -299,12 +299,12 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         double d = 0;
         if (following != null) {
             final double bufferSpace = bufferSpace() + following.bufferSpace();
-            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed), world);
+            final Optional<CartPathfinder.Result> result = type.pathfinder().find(this, following, bufferSpace + Math.abs(train.speed) / m, world);
             if (result.isPresent()) {
                 d = result.get().optimalDistance();
             }
         }
-        final double speed = train.speed * (inverted ? -1 : 1) + d * 0.1;
+        final double speed = train.speed * (inverted ? -1 : 1) + d * 0.15;
         final double maxMove = speed * m;
         final double oldProgress = progress;
         final double target;
@@ -398,6 +398,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         private final List<AbstractCart<T, P>> carts = new ArrayList<>();
         private double mass = 1.0;
         private double speed = 0.0;
+        private double nextSpeed = 0.0;
 
         public Train(final AbstractCart<T, P> cart) {
             this.type = cart.type();
@@ -415,6 +416,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             this.carts.addAll(carts);
             updateMass();
             this.speed = speed;
+            this.nextSpeed = speed;
         }
 
         public void updateMass() {
@@ -466,6 +468,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                 cart.train = first.train;
             }
             first.train.speed = 0;
+            first.train.nextSpeed = 0;
             first.train.updateMass();
             for (final AbstractCart<T, P> cart : second.train.carts) {
                 cart.tracker.trainChange();
@@ -487,6 +490,7 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             }
             train.updateMass();
             train.speed = 0;
+            train.nextSpeed = 0;
         }
 
         private static <T extends Rail<T>, P> boolean linkSingleMulti(final Train<T, P> train, final AbstractCart<T, P> cart) {
@@ -594,16 +598,16 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         }
 
         public void speed(final double speed) {
-            this.speed = speed;
+            this.nextSpeed = speed;
         }
 
         public void addSpeed(final AbstractCart<T, P> cart, double speed) {
-            speed = this.speed + (cart.inverted ? -1 : 1) * speed * cart.mass() / mass;
-            this.speed = Math.copySign(Math.min(Math.abs(speed), TrainLib.CONFIG.maxSpeed()), speed);
+            speed = this.nextSpeed + (cart.inverted ? -1 : 1) * speed * cart.mass() / mass;
+            this.nextSpeed = Math.copySign(Math.min(Math.abs(speed), TrainLib.CONFIG.maxSpeed()), speed);
         }
 
         public void speed(final AbstractCart<T, P> cart, final double speed) {
-            this.speed = (cart.inverted ? -1 : 1) * speed;
+            this.nextSpeed = (cart.inverted ? -1 : 1) * speed;
         }
 
         private boolean resetForwardsEnd(final AbstractCart<T, P> start, final AbstractCart<T, P> following) {
@@ -665,8 +669,9 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         }
 
         public void tick() {
-            if (Math.abs(speed) < 0.00001) {
-                speed = 0;
+            this.speed = nextSpeed;
+            if (this.speed < 0.00001) {
+                this.speed = 0;
             }
             for (final AbstractCart<T, P> cart : carts) {
                 cart.position(cart.holder.getPos());
@@ -762,10 +767,10 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         public double applyVelocityModifier(final AbstractCart<T, P> cart, final T rail, final double remaining) {
             final double factor = cart.mass() / mass;
             final TrainLibConfig config = TrainLib.CONFIG;
-            speed = speed - speed * MathHelper.clamp(factor * (rail.friction(cart, cart.progress) * remaining * remaining * 0.5), 0, 1);
+            nextSpeed -= nextSpeed * MathHelper.clamp(factor * (rail.friction(cart, cart.progress) * remaining * remaining * 0.5), 0, 1);
             final double gravity = config.gravity();
             final double angle = rail.slopeAngle() * (cart.inverted ? -1 : 1) * gravity;
-            speed = speed - factor * (remaining * remaining * 0.5 * angle);
+            nextSpeed -= factor * (remaining * remaining * 0.5 * angle);
             return remaining;
         }
 
