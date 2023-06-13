@@ -2,12 +2,15 @@ package io.github.stuff_stuffs.train_lib.internal.client.render.entity;
 
 import io.github.stuff_stuffs.train_lib.api.client.cargo.CargoRenderer;
 import io.github.stuff_stuffs.train_lib.api.client.cargo.CargoRenderingRegistry;
+import io.github.stuff_stuffs.train_lib.api.common.cart.AbstractCart;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.Cargo;
 import io.github.stuff_stuffs.train_lib.api.common.cart.cargo.CargoType;
 import io.github.stuff_stuffs.train_lib.api.common.cart.entity.AbstractCartEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import io.github.stuff_stuffs.train_lib.internal.common.entity.MinecartCartEntity;
 import io.github.stuff_stuffs.train_lib.internal.common.entity.MinecartMovementTracker;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.ChainBlock;
 import net.minecraft.client.model.*;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -22,6 +25,7 @@ import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.MinecartEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
@@ -48,7 +52,8 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
     @Override
     public void render(final T entity, final float yaw, final float tickDelta, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
-        if (entity.cart().isDestroyed()) {
+        final AbstractCart<?, ?> cart = entity.cart();
+        if (cart.isDestroyed()) {
             return;
         }
         final double heightOffset = 0.39;
@@ -72,15 +77,16 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
         matrices.push();
         final Vec3d position = entity.fastPosition(tickDelta);
         matrices.translate(position.x - entity.lastRenderX, position.y - entity.lastRenderY, position.z - entity.lastRenderZ);
+        matrices.push();
         matrices.multiply(quat);
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.sin(entity.age) * entity.getDataTracker().get(MinecartCartEntity.DAMAGE_WOBBLE_STRENGTH) / 10.0F));
         matrices.translate(0, heightOffset * scale, 0);
         matrices.scale((float) scale, (float) scale, (float) scale);
         final boolean skip;
-        if (entity.cart().cargo() == null) {
+        if (cart.cargo() == null) {
             skip = false;
         } else {
-            final Cargo cargo = entity.cart().cargo();
+            final Cargo cargo = cart.cargo();
             skip = shouldSkipRendering(cargo, cargo.type());
         }
         if (!skip) {
@@ -115,7 +121,7 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             matrices.pop();
 
         }
-        final Cargo cargo = entity.cart().cargo();
+        final Cargo cargo = cart.cargo();
         if (cargo != null) {
             final CargoType<?> type = cargo.type();
             matrices.push();
@@ -123,6 +129,33 @@ public class MinecartCartEntityRenderer<T extends AbstractCartEntity> extends En
             renderCargo(type, cargo, entity, tickDelta, matrices, vertexConsumers, light);
             matrices.pop();
         }
+        matrices.pop();
+        if (cart.attachment() != null) {
+            matrices.translate(0, 0.5, 0);
+            Vec3d attachmentPoint = entity.attachmentOffset(tickDelta);
+            matrices.translate(attachmentPoint.x, attachmentPoint.y, attachmentPoint.z);
+            attachmentPoint = attachmentPoint.add(position);
+            final Vec3d backAttachmentPoint;
+            if (cart.attachment().holder() instanceof AbstractCartEntity abstractCartEntity) {
+                backAttachmentPoint = abstractCartEntity.attachmentOffset(tickDelta).multiply(-1).add(abstractCartEntity.fastPosition(tickDelta));
+            } else {
+                backAttachmentPoint = cart.attachment().forward().multiply(-cart.bufferSpace()).add(cart.attachment().position());
+            }
+            final Vec3d delta = backAttachmentPoint.subtract(attachmentPoint);
+            renderChain(delta, entity.up(tickDelta), matrices, vertexConsumers, light);
+        }
+        matrices.pop();
+    }
+
+    private void renderChain(final Vec3d delta, final Vec3d up, final MatrixStack matrices, final VertexConsumerProvider vertexConsumers, final int light) {
+        final Quaternionf quaternion = new Quaternionf().lookAlong(delta.toVector3f(), up.toVector3f());
+        matrices.push();
+        matrices.scale(1, 1, -1);
+        matrices.multiply(quaternion);
+        final double len = delta.length();
+        matrices.translate(-0.5, -0.5, 0);
+        matrices.scale(1, 1, (float) len);
+        blockRenderManager.renderBlockAsEntity(Blocks.CHAIN.getDefaultState().with(ChainBlock.AXIS, Direction.Axis.Z), matrices, vertexConsumers, light, OverlayTexture.DEFAULT_UV);
         matrices.pop();
     }
 

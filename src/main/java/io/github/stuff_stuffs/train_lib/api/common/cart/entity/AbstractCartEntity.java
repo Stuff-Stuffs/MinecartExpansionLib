@@ -537,11 +537,61 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force);
 
+    public Vec3d up(final float time) {
+        final MinecartMovementTracker.Entry current = movementTracker.at(time);
+        final MinecartMovementTracker.Entry next = movementTracker.next(time);
+        final Vec3d up;
+        if (current.equals(next)) {
+            up = current.forward();
+        } else {
+            final Vec3d curUp = current.up();
+            final Vec3d nextUp = next.up();
+            final float weight = (time - current.time()) / (next.time() - current.time());
+            final double dot = curUp.dotProduct(nextUp);
+            if (dot > 0.99999) {
+                up = curUp.multiply(1 - weight).add(nextUp.multiply(weight)).normalize();
+            } else {
+                final double acos = Math.acos(dot);
+                final double div = 1 / Math.sin(acos);
+                up = curUp.multiply(Math.sin((1 - weight) * acos * div)).add(nextUp.multiply(Math.sin(weight * acos * div)));
+            }
+        }
+        return up;
+    }
+
+    public Vec3d attachmentOffset(final float time) {
+        final MinecartMovementTracker.Entry current = movementTracker.at(time);
+        final MinecartMovementTracker.Entry next = movementTracker.next(time);
+        final Vec3d forwards;
+        if (current.equals(next)) {
+            forwards = current.forward();
+        } else {
+            final Vec3d curForward = current.forward();
+            final Vec3d nextForward = next.forward();
+            final float weight = (time - current.time()) / (next.time() - current.time());
+            final double dot = curForward.dotProduct(nextForward);
+            if (dot > 0.99999) {
+                forwards = curForward.multiply(1 - weight).add(nextForward.multiply(weight)).normalize();
+            } else {
+                final double acos = Math.acos(dot);
+                final double div = 1 / Math.sin(acos);
+                forwards = curForward.multiply(Math.sin((1 - weight) * acos * div)).add(nextForward.multiply(Math.sin(weight * acos * div)));
+            }
+        }
+        double bufferSpace = cart().bufferSpace();
+        if (cart().reversed()) {
+            bufferSpace = -bufferSpace;
+        }
+        return forwards.multiply(bufferSpace);
+    }
+
     private static void applyFlags(final AbstractCart<?, ?> cart, final int flags) {
+        cart.forceForwardAligned((flags & 1) == 1);
     }
 
     private static int writeFlags(final AbstractCart<?, ?> cart) {
-        final int flags = 0;
+        int flags = 0;
+        flags |= cart.forwardAligned() ? 1 : 0;
         return flags;
     }
 

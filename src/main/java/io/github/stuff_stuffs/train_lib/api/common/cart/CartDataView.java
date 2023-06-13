@@ -21,6 +21,8 @@ public interface CartDataView {
 
     @Nullable CartDataView attachment();
 
+    boolean reversed();
+
     double mass();
 
     double bufferSpace();
