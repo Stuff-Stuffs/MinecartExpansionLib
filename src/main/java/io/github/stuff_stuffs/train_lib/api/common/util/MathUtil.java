@@ -47,6 +47,19 @@ public final class MathUtil {
         return deltaNorm.multiply(t).add(start);
     }
 
+    public static Vec3d slerp(final Vec3d start, final Vec3d end, final double alpha) {
+        final Vec3d res;
+        final double dot = start.dotProduct(end);
+        if (dot > 0.99999) {
+            res = start.multiply(1 - alpha).add(end.multiply(alpha)).normalize();
+        } else {
+            final double acos = Math.acos(dot);
+            final double div = 1 / Math.sin(acos);
+            res = start.multiply(Math.sin((1 - alpha) * acos * div)).add(end.multiply(Math.sin(alpha * acos * div)));
+        }
+        return res;
+    }
+
     private MathUtil() {
     }
 }
