@@ -110,7 +110,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             if (player.getStackInHand(Hand.MAIN_HAND).isOf(Items.CHAIN)) {
                 AbstractCart<?, ?> cart = obj.extract(other);
                 if (cart != null && !obj.cart().isDestroyed() && !cart.isDestroyed()) {
-                    if (obj.tryLink(obj.cart(), cart, true)) {
+                    if (obj.tryLink(obj.cart(), cart)) {
                         if (player.interactionManager.getGameMode().isSurvivalLike()) {
                             player.getStackInHand(Hand.MAIN_HAND).decrement(1);
                         }
@@ -135,12 +135,14 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             }
         }
         obj.linkAll(holders);
+        obj.cart().train().speed(buffer.readFloat());
     }, (obj, buffer, ctx) -> {
         final List<? extends AbstractCart<?, ?>> cars = obj.cart().cars();
         buffer.writeVarInt(cars.size());
         for (AbstractCart<?, ?> car : cars) {
             buffer.writeInt(car.holder().getId());
         }
+        buffer.writeFloat((float) obj.cart().train().speed());
     }).toClientOnly();
     private final MinecartMovementTracker movementTracker;
     public float wheelAngle;
@@ -320,7 +322,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
             final AbstractCart<?, ?> extract = extract(entity);
             if (extract != null) {
                 getWorld().spawnEntity(entity);
-                attach(extract);
+                tryLink(this.cart(), extract);
             }
         }
         if (nbt.contains("speed", NbtElement.DOUBLE_TYPE)) {
@@ -529,51 +531,17 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     protected abstract void linkAll(List<Entity> holders);
 
-    protected abstract void attach(AbstractCart<?, ?> toAttach);
-
     public abstract AbstractCart<?, ?> cart();
 
     protected abstract @Nullable AbstractCart<?, ?> extract(Entity entity);
 
-    protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force);
-
-    public Vec3d up(final float time) {
-        final MinecartMovementTracker.Entry current = movementTracker.at(time);
-        final MinecartMovementTracker.Entry next = movementTracker.next(time);
-        final Vec3d up;
-        if (current.equals(next)) {
-            up = current.forward();
-        } else {
-            final float alpha = (time - current.time()) / (next.time() - current.time());
-            up = MathUtil.slerp(current.forward(), next.forward(), alpha);
-        }
-        return up;
-    }
-
-    public Vec3d attachmentOffset(final float time) {
-        final MinecartMovementTracker.Entry current = movementTracker.at(time);
-        final MinecartMovementTracker.Entry next = movementTracker.next(time);
-        final Vec3d forwards;
-        if (current.equals(next)) {
-            forwards = current.forward();
-        } else {
-            final float alpha = (time - current.time()) / (next.time() - current.time());
-            forwards = MathUtil.slerp(current.forward(), next.forward(), alpha);
-        }
-        double bufferSpace = cart().bufferSpace();
-        if (cart().reversed()) {
-            bufferSpace = -bufferSpace;
-        }
-        return forwards.multiply(bufferSpace);
-    }
+    protected abstract boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second);
 
     private static void applyFlags(final AbstractCart<?, ?> cart, final int flags) {
-        cart.forceForwardAligned((flags & 1) == 1);
     }
 
     private static int writeFlags(final AbstractCart<?, ?> cart) {
-        int flags = 0;
-        flags |= cart.forwardAligned() ? 1 : 0;
+        final int flags = 0;
         return flags;
     }
 

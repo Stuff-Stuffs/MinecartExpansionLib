@@ -6,12 +6,10 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 public class PoweredMinecartRail extends SimpleMinecartRail {
-    private final double maxSpeed;
     private final double accelerationFactor;
 
-    public PoweredMinecartRail(final Vec3d start, final Vec3d end, final int id, final BlockPos railPosition, final BlockPos entrance, final BlockPos exit, final Direction entranceDirection, final Direction exitDirection, final double maxSpeed, final double accelerationFactor) {
+    public PoweredMinecartRail(final Vec3d start, final Vec3d end, final int id, final BlockPos railPosition, final BlockPos entrance, final BlockPos exit, final Direction entranceDirection, final Direction exitDirection, final double accelerationFactor) {
         super(start, end, id, railPosition, entrance, exit, entranceDirection, exitDirection);
-        this.maxSpeed = maxSpeed;
         this.accelerationFactor = accelerationFactor;
     }
 
@@ -20,6 +18,7 @@ public class PoweredMinecartRail extends SimpleMinecartRail {
         super.onRail(minecart, startProgress, endProgress, time);
         final double speed = minecart.speed();
         final double absolute = Math.abs(speed);
+        final double maxSpeed = minecart.type().maxSpeed();
         if (absolute < maxSpeed && absolute != 0) {
             final double s = Math.signum(speed) * (maxSpeed * accelerationFunction(time * accelerationFactor, absolute / maxSpeed));
             minecart.addSpeed(s);

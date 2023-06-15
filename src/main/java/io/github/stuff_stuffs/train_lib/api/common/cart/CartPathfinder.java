@@ -17,7 +17,7 @@ import java.util.Queue;
 import java.util.function.IntSupplier;
 
 public abstract class CartPathfinder<T extends Rail<T>, P> {
-    public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.CONFIG::maxPathfindingLimit) {
+    public static final CartPathfinder<MinecartRail, BlockPos> MINECART_PATHFINDER = new CartPathfinder<>(TrainLib.MINECART_BEHAVIOUR_MIRROR::maxPathfindingLimit) {
         @Override
         protected BlockPos extract(final MinecartRail rail) {
             return rail.railPosition();

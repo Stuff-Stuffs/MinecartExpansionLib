@@ -1,5 +1,6 @@
 package io.github.stuff_stuffs.train_lib.api.common.cart;
 
+import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
@@ -22,9 +23,8 @@ public interface Rail<T extends Rail<T>> {
     double length();
 
     default double friction(final CartView minecart, final double progress) {
-        //default minecart slowdown
-        final double g = 0.0078125;
-        final double abs = Math.abs(g / minecart.speed());
+        final double frictionFactor = TrainLib.PHYSICS_MIRROR.wheelFriction10() * 0.1;
+        final double abs = Math.abs(frictionFactor / minecart.speed());
         if (abs > 1) {
             return 1;
         }

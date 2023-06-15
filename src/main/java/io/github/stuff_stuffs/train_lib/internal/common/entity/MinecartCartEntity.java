@@ -56,13 +56,6 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected void attach(final AbstractCart<?, ?> toAttach) {
-        if (toAttach instanceof MinecartImpl other) {
-            minecart.train().link(other, true);
-        }
-    }
-
-    @Override
     public MinecartImpl cart() {
         return minecart;
     }
@@ -76,9 +69,9 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
     }
 
     @Override
-    protected boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second, final boolean force) {
+    protected boolean tryLink(final AbstractCart<?, ?> first, final AbstractCart<?, ?> second) {
         if (first instanceof MinecartImpl firstImpl && second instanceof MinecartImpl secondImpl) {
-            return firstImpl.train().link(secondImpl, false);
+            return firstImpl.train().link(secondImpl);
         }
         return false;
     }
@@ -128,7 +121,7 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
             public double handle(final Cart minecart, @Nullable final Cart following, final Vec3d position, final double time) {
                 //TODO partial movements
                 setPosition(position);
-                final double gravity = TrainLib.CONFIG.gravity();
+                final double gravity = TrainLib.PHYSICS_MIRROR.gravity();
                 if (following != null) {
                     Vec3d distance = following.position().subtract(getPos()).withAxis(Direction.Axis.Y, 0);
                     final double optimal = minecart.bufferSpace() + following.bufferSpace();
