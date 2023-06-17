@@ -118,7 +118,6 @@ public final class MinecartRailAdaptor {
 
             @Override
             public NextRailInfo<MinecartRail> snap(final CartView view) {
-
                 final double progress = MathUtil.unAppliedProject(info.start, info.end, view.position(), true);
                 if (view.velocity().dotProduct(info.end.subtract(info.start)) < 0) {
                     return new NextRailInfo<>(rail, progress, false);

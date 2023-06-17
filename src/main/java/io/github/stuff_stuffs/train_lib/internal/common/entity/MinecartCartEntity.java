@@ -17,7 +17,6 @@ import net.minecraft.entity.MovementType;
 import net.minecraft.item.Item;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -123,14 +122,19 @@ public class MinecartCartEntity extends AbstractCartEntity implements MinecartHo
                 setPosition(position);
                 final double gravity = TrainLib.PHYSICS_MIRROR.gravity();
                 if (following != null) {
-                    Vec3d distance = following.position().subtract(getPos()).withAxis(Direction.Axis.Y, 0);
+                    Vec3d distance = following.position().subtract(getPos());
                     final double optimal = minecart.bufferSpace() + following.bufferSpace();
-                    if (distance.lengthSquared() < 0.1) {
-                        distance = new Vec3d(optimal, 0, 0);
+                    if (distance.lengthSquared() < 0.00001) {
+                        distance = Vec3d.ZERO;
+                    } else {
+                        if (distance.lengthSquared() < optimal * optimal) {
+                            distance = distance.subtract(distance.normalize().multiply(optimal));
+                        } else {
+                            final double length = distance.length();
+                            distance = distance.subtract(distance.multiply(optimal / length));
+                        }
                     }
-                    final double length = distance.length();
-                    final Vec3d velocity = following.holder().getVelocity().add(distance.multiply((1 / length) * (length - optimal))).add(0, -gravity, 0);
-                    setVelocity(velocity);
+                    final Vec3d velocity = distance.add(0, -gravity, 0);
                     move(MovementType.SELF, velocity.multiply(time));
                     minecart.position(getPos());
                     return 0;

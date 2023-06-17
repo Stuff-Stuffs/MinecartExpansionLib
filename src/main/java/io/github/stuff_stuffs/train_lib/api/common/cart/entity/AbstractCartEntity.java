@@ -96,9 +96,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 abstractCart.position(vec);
                 abstractCart.progress(progress);
                 cart.setPosition(vec);
+                cart.resetPosition();
                 abstractCart.train().speed(speed);
                 applyFlags(abstractCart, flags);
-                cart.resetPosition();
             }
         }
     }).toClientOnly();
@@ -151,6 +151,15 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     public AbstractCartEntity(final EntityType<?> type, final World world) {
         super(type, world);
         movementTracker = new MinecartMovementTracker(() -> new MinecartMovementTracker.Entry(1.0F, getPos(), Vec3d.fromPolar(0, 0), Rail.DEFAULT_UP));
+    }
+
+    @Override
+    public Vec3d getVelocity() {
+        if (cart().isDestroyed() || !cart().onRail()) {
+            return super.getVelocity();
+        } else {
+            return cart().velocity();
+        }
     }
 
     @Override
@@ -285,10 +294,12 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
                 itemStack.setCustomName(getCustomName());
             }
             dropStack(itemStack);
-            final Cargo cargo = cart().cargo();
-            if (cargo != null) {
-                for (final ItemStack drop : cargo.drops(damageSource)) {
-                    dropStack(drop);
+            if (!cart().isDestroyed()) {
+                final Cargo cargo = cart().cargo();
+                if (cargo != null) {
+                    for (final ItemStack drop : cargo.drops(damageSource)) {
+                        dropStack(drop);
+                    }
                 }
             }
         }
@@ -302,7 +313,7 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
     @Override
     public void setVelocity(final Vec3d velocity) {
         super.setVelocity(velocity);
-        if (!cart().onRail()) {
+        if (!cart().isDestroyed() && !cart().onRail()) {
             cart().speed(velocity.length());
         }
     }
@@ -383,11 +394,17 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public boolean collidesWith(final Entity other) {
+        if (cart().isDestroyed()) {
+            return false;
+        }
         return other.isCollidable() && cart().cars().stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(other));
     }
 
     @Override
     public void pushAwayFrom(final Entity entity) {
+        if (cart().isDestroyed()) {
+            return;
+        }
         final AbstractCart<?, ?> cart = cart();
         final List<? extends AbstractCart<?, ?>> cars = cart.cars();
         if (cars.stream().noneMatch(car -> car.holder().isConnectedThroughVehicle(entity))) {
@@ -436,6 +453,9 @@ public abstract class AbstractCartEntity extends Entity implements FastMountEnti
 
     @Override
     public ActionResult interact(final PlayerEntity player, final Hand hand) {
+        if (cart().isDestroyed()) {
+            return ActionResult.PASS;
+        }
         if (hand == Hand.MAIN_HAND && player.getStackInHand(Hand.MAIN_HAND).isEmpty()) {
             if (getWorld().isClient) {
                 return ActionResult.success(cart().cargo() == null);

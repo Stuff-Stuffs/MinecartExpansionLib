@@ -8,7 +8,6 @@ import io.github.stuff_stuffs.train_lib.api.common.event.CartEvent;
 import io.github.stuff_stuffs.train_lib.api.common.event.CartEventEmitter;
 import io.github.stuff_stuffs.train_lib.api.common.util.MathUtil;
 import io.github.stuff_stuffs.train_lib.internal.common.TrainLib;
-import io.github.stuff_stuffs.train_lib.internal.common.config.TrainLibConfig;
 import it.unimi.dsi.fastutil.ints.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
@@ -35,7 +34,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
     private final CartEventEmitter emitter;
     private final TransientData transientData;
     private double progress;
-    private @Nullable T lastRail = null;
     private @Nullable T currentRail = null;
     private @Nullable Cargo cargo = null;
     private boolean inverted = false;
@@ -227,21 +225,25 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         if (currentRail != null) {
             currentRail.onExit(this);
         }
-        currentRail = null;
         final RailProvider<T> provider = tryGetProvider(findOrDefault(position, world));
         if (provider == null) {
+            currentRail = null;
             return;
         }
         final RailProvider.NextRailInfo<T> snap = provider.snap(this);
         if (snap == null) {
+            currentRail = null;
             return;
         }
-        if (snap.forwards() ^ forwards()) {
-            inverted = !inverted;
+        if (currentRail == null) {
+            if (attached() == null && (train.speed() < 0 ^ !snap.forwards())) {
+                train.speed(-train.speed());
+            } else if (attachment() == null && (train.speed() > 0 ^ !snap.forwards())) {
+                train.speed(-train.speed());
+            }
         }
         currentRail = snap.rail();
         progress = snap.progress();
-        final Vec3d tangent = currentRail.tangent(progress);
         transientData.update(this, currentRail);
         emitter.setPos(position);
         currentRail.onEnter(this);
@@ -272,15 +274,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             progress = 0;
             return null;
         }
-        if (lastRail == null) {
-            final RailProvider.NextRailInfo<T> info = provider.snap(this);
-            if (info != null) {
-                lastRail = info.rail();
-                progress = info.progress();
-            } else {
-                return null;
-            }
-        }
         final T rail = provider.currentRail(this);
         if (rail == null) {
             return null;
@@ -305,22 +298,21 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
         } else {
             target = checkBlock(currentRail, false);
         }
-        if ((speed > 0 && progress + maxMove > target) || (speed < 0 && progress + maxMove < target)) {
+        if ((speed > 0 && progress + maxMove > length) || (speed < 0 && progress + maxMove < 0)) {
             final boolean forwards = speed >= 0;
             final double overflow = Math.min((progress + maxMove - target) / speed, 1);
-            lastRail = currentRail;
-            MinecartRailProvider.NextRailInfo<T> railInfo = provider.next(this, lastRail, null);
+            MinecartRailProvider.NextRailInfo<T> railInfo = provider.next(this, currentRail, null);
             if (railInfo == null) {
                 final Optional<RailProvider.NextRailInfo<T>> next = next(pos, forwards ? currentRail.exitDirection() : currentRail.entranceDirection(), overflow, forwards);
                 if (next.isEmpty()) {
-                    this.progress = Math.min(Math.max(this.progress + maxMove, 0), length);
+                    this.progress = Math.min(Math.max(progress + maxMove, 0), length);
                     transientData.update(this, currentRail);
                     return new MoveInfo<>(overflow, null);
                 }
                 railInfo = next.get();
             }
             final P nextPos = positionFromRail(railInfo.rail());
-            progress = Math.min(Math.max(this.progress + maxMove, MathUtil.EPS), length - MathUtil.EPS);
+            progress = Math.min(Math.max(progress + maxMove, MathUtil.EPS), length - MathUtil.EPS);
             transientData.updateOnRail(this, currentRail, oldProgress, progress, timeRemaining - overflow);
             currentRail.onExit(this);
             if (cargo != null) {
@@ -329,13 +321,29 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             currentRail = railInfo.rail();
             currentRail.onEnter(this);
             if (forwards() ^ railInfo.forwards()) {
-                inverted = !inverted;
+                if (train.carts.size() == 1) {
+                    train.speed = -train.speed;
+                    train.nextSpeed = -train.nextSpeed;
+                } else {
+                    inverted = !inverted;
+                }
             }
-            this.progress = railInfo.progress();
+            progress = railInfo.progress();
             transientData.update(this, currentRail);
             return new MoveInfo<>(Math.max(overflow, MathUtil.EPS), nextPos);
         }
         progress = progress + maxMove;
+        boolean blocked = false;
+        if (speed > 0 && progress > target) {
+            progress = target;
+            blocked = true;
+        } else if (speed < 0 && progress < target) {
+            progress = target;
+            blocked = true;
+        }
+        if (blocked && following == null) {
+            train.speed(0);
+        }
         transientData.updateOnRail(this, currentRail, oldProgress, progress, timeRemaining);
         tracker.onMove(position(), forward(), MinecartRail.DEFAULT_UP, 1);
         if (cargo != null) {
@@ -590,12 +598,37 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             this.nextSpeed = (cart.inverted ? -1 : 1) * speed;
         }
 
+        private boolean tryFixDisconnectHead(final AbstractCart<T, P> start, final AbstractCart<T, P> following) {
+            if (!following.onRail() || start.onRail()) {
+                return true;
+            }
+            final Vec3d followedPos = start.position();
+            return !(following.position().squaredDistanceTo(followedPos) > (following.bufferSpace() + start.bufferSpace()) * 3);
+        }
+
+        private boolean tryFixDisconnect(final AbstractCart<T, P> following, final AbstractCart<T, P> followed) {
+            if (!following.onRail() || followed.onRail()) {
+                return true;
+            }
+            final Vec3d followedPos = followed.position();
+            if (following.position().squaredDistanceTo(followedPos) > (following.bufferSpace() + followed.bufferSpace()) * 3) {
+                return false;
+            }
+            final T rail = following.currentRail;
+            final boolean forwards = rail.position(rail.length()).squaredDistanceTo(followedPos) < rail.position(0).squaredDistanceTo(followedPos);
+            following.inverted = (speed >= 0) ^ forwards;
+            return true;
+        }
+
         private boolean resetForwardsEnd(final AbstractCart<T, P> start, final AbstractCart<T, P> following) {
             final CartPathfinder.SwapResult swap = type.pathfinder().swapStart(start, following, start.world);
             if (swap == CartPathfinder.SwapResult.SWAP) {
                 start.inverted = !start.inverted;
             }
-            return swap != CartPathfinder.SwapResult.BROKEN;
+            if (swap == CartPathfinder.SwapResult.BROKEN) {
+                return tryFixDisconnectHead(start, following);
+            }
+            return true;
         }
 
         private boolean resetForwards(final AbstractCart<T, P> following, final AbstractCart<T, P> followed) {
@@ -603,7 +636,10 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             if (swap == CartPathfinder.SwapResult.SWAP) {
                 following.inverted = !following.inverted;
             }
-            return swap != CartPathfinder.SwapResult.BROKEN;
+            if (swap == CartPathfinder.SwapResult.BROKEN) {
+                return tryFixDisconnect(following, followed);
+            }
+            return true;
         }
 
         public IntSet resetForwards() {
@@ -660,7 +696,12 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             final IntSet breaks = resetForwards();
             final IntSet offRailBreaks = new IntOpenHashSet();
             final int size = carts.size();
-            if (speed >= 0) {
+            if (size == 1) {
+                final AbstractCart<T, P> cart = carts.get(0);
+                cart.inverted = false;
+                cart.tracker.reset();
+                move(cart, null);
+            } else if (speed >= 0) {
                 for (int i = 0; i < size; i++) {
                     final AbstractCart<T, P> cart = carts.get(i);
                     final AbstractCart<T, P> following = i == 0 ? null : carts.get(i - 1);
@@ -708,20 +749,12 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
             final int recursionLimit = type.maxRecursion();
             while (time > 0.0 && count < recursionLimit) {
                 final MoveInfo<P> info = cart.tryMove(pos, time, following);
-                if (info == null) {
+                if (info == null || info.pos == null) {
                     final Vec3d p = cart.position();
                     cart.offRailHandler.handle(cart, following, cart.position(), time);
                     final Vec3d endP = cart.position();
                     cart.transientData.velocity = endP.subtract(p);
-                    offRailTrack(cart, time);
-                    break;
-                }
-                if (info.pos == null) {
-                    final Vec3d p = cart.position();
-                    cart.offRailHandler.handle(cart, following, cart.position(), time);
-                    final Vec3d endP = cart.position();
-                    cart.transientData.velocity = endP.subtract(p);
-                    offRailTrack(cart, info.time);
+                    offRailTrack(cart, info == null ? time : info.time);
                     break;
                 }
                 pos = info.pos;
@@ -746,7 +779,6 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
 
         public void applyVelocityModifier(final AbstractCart<T, P> cart, final T rail, final double remaining) {
             final double factor = cart.mass() / mass;
-            final TrainLibConfig config = TrainLib.CONFIG;
             nextSpeed -= nextSpeed * MathHelper.clamp(factor * (rail.friction(cart, cart.progress) * remaining * remaining * 0.5), 0, 1);
             final double gravity = TrainLib.PHYSICS_MIRROR.gravity();
             final double appliedForce = rail.slopeAngle() * (cart.inverted ? -1 : 1) * gravity * cart.mass();
@@ -796,6 +828,16 @@ public abstract class AbstractCart<T extends Rail<T>, P> implements Cart {
                     cart.tracker.trainChange();
                 }
                 last = current;
+            }
+            if (!breaks.isEmpty()) {
+                final List<AbstractCart<T, P>> carts = train.carts.subList(last + 1, train.carts.size());
+                final Train<T, P> section = new Train<>(carts, train.speed);
+                for (final AbstractCart<T, P> cart : carts) {
+                    cart.train = section;
+                }
+                for (final AbstractCart<T, P> cart : carts) {
+                    cart.tracker.trainChange();
+                }
             }
             if (first != -1) {
                 train.carts.subList(first + 1, train.carts.size()).clear();
